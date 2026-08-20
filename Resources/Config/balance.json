@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "goldRatio": 0.5,
+  "difficultyBaseEXP": {
+    "1": 10,
+    "2": 20,
+    "3": 35,
+    "4": 55,
+    "5": 80
+  },
+  "durationFactor": {
+    "bonusPerHour": 0.5,
+    "min": 1.0,
+    "max": 3.0
+  },
+  "multiplierClamp": {
+    "min": 0.2,
+    "max": 3.0
+  },
+  "playerCurve": {
+    "base": 100,
+    "exponent": 1.5,
+    "maxLevel": 100
+  },
+  "skillCurve": {
+    "base": 60,
+    "exponent": 1.6,
+    "maxLevel": 100
+  },
+  "streakTiers": [
+    { "days": 7, "multiplier": 1.1 },
+    { "days": 30, "multiplier": 1.2 },
+    { "days": 100, "multiplier": 1.5 }
+  ],
+  "levelUpReward": {
+    "goldBase": 50,
+    "goldPerLevel": 10
+  },
+  "habitReward": {
+    "baseEXP": 12,
+    "baseGold": 6
+  }
+}

@@ -1,0 +1,185 @@
+import XCTest
+@testable import LifeRPG
+
+final class RewardEngineTests: XCTestCase {
+
+    private let engine = RewardEngine(balance: .fallback, modifiers: .fallback)
+    private let today = GameDay(year: 2026, month: 8, day: 4)
+    private let yesterday = GameDay(year: 2026, month: 8, day: 3)
+
+    private func context(
+        difficulty: QuestDifficulty = .normal,
+        priority: QuestPriority = .normal,
+        minutes: Int = 60,
+        plannedAhead: Bool = true,
+        scheduled: GameDay? = nil,
+        completed: GameDay? = nil,
+        consecutive: Int = 0,
+        globalStreak: Int = 0,
+        shares: [SkillShare] = []
+    ) -> RewardContext {
+        RewardContext(
+            difficulty: difficulty,
+            priority: priority,
+            estimatedMinutes: minutes,
+            isPlannedAhead: plannedAhead,
+            scheduledDay: scheduled ?? today,
+            completedDay: completed ?? today,
+            consecutiveStreak: consecutive,
+            globalStreakDays: globalStreak,
+            skillShares: shares
+        )
+    }
+
+    // MARK: - 基础
+
+    func testDurationFactorIsClamped() {
+        XCTAssertEqual(engine.durationFactor(minutes: 0), 1.0, accuracy: 0.001)
+        XCTAssertEqual(engine.durationFactor(minutes: 60), 1.5, accuracy: 0.001)
+        // 上限 3.0，再长的任务不会无限膨胀收益
+        XCTAssertEqual(engine.durationFactor(minutes: 6000), 3.0, accuracy: 0.001)
+    }
+
+    func testBaseRewardUsesDifficultyTable() {
+        let result = engine.evaluate(context(difficulty: .normal, minutes: 0))
+        XCTAssertEqual(result.baseEXP, 35, accuracy: 0.001)
+        XCTAssertEqual(result.baseGold, 17.5, accuracy: 0.001)
+    }
+
+    // MARK: - 分组互斥
+
+    /// planning 组只能命中一条：提前规划与当天临时描述的是同一个维度
+    func testPlanningModifiersAreMutuallyExclusive() {
+        let planned = engine.evaluate(context(plannedAhead: true))
+        let sameDay = engine.evaluate(context(plannedAhead: false))
+
+        XCTAssertEqual(planned.appliedModifiers.filter { $0.group == "planning" }.count, 1)
+        XCTAssertEqual(sameDay.appliedModifiers.filter { $0.group == "planning" }.count, 1)
+        XCTAssertTrue(planned.appliedModifiers.contains { $0.id == ModifierID.plannedAhead })
+        XCTAssertTrue(sameDay.appliedModifiers.contains { $0.id == ModifierID.sameDay })
+    }
+
+    func testEveryGroupAppearsAtMostOnce() {
+        let result = engine.evaluate(
+            context(difficulty: .epic, priority: .critical, plannedAhead: true, consecutive: 10)
+        )
+        let groups = result.appliedModifiers.map(\.group)
+        XCTAssertEqual(groups.count, Set(groups).count)
+    }
+
+    // MARK: - 乘数
+
+    func testBestCaseMultiplier() {
+        // 提前规划 +0.2、按时完成 +0.2、五星 +0.3、连续 +0.1 → 1.8
+        let result = engine.evaluate(
+            context(difficulty: .epic, priority: .critical, plannedAhead: true, consecutive: 5)
+        )
+        XCTAssertEqual(result.multiplier, 1.8, accuracy: 0.001)
+    }
+
+    func testWorstCaseIsClampedAtFloor() {
+        // 当天临时 -0.5、延期完成 -0.3 → 0.2，恰好落在下限
+        let result = engine.evaluate(
+            context(plannedAhead: false, scheduled: yesterday, completed: today)
+        )
+        XCTAssertEqual(result.multiplier, 0.2, accuracy: 0.001)
+    }
+
+    func testMultiplierNeverExceedsClamp() {
+        for difficulty in QuestDifficulty.allCases {
+            for priority in QuestPriority.allCases {
+                for planned in [true, false] {
+                    let result = engine.evaluate(
+                        context(difficulty: difficulty, priority: priority, plannedAhead: planned, consecutive: 99)
+                    )
+                    XCTAssertGreaterThanOrEqual(result.multiplier, BalanceConfig.fallback.multiplierClamp.min)
+                    XCTAssertLessThanOrEqual(result.multiplier, BalanceConfig.fallback.multiplierClamp.max)
+                }
+            }
+        }
+    }
+
+    /// 连续加成是独立乘数，不能被上面的夹逼吃掉
+    func testStreakMultiplierIsAppliedOutsideClamp() {
+        let noStreak = engine.evaluate(context(plannedAhead: false, scheduled: yesterday, completed: today))
+        let withStreak = engine.evaluate(
+            context(plannedAhead: false, scheduled: yesterday, completed: today, globalStreak: 100)
+        )
+        XCTAssertEqual(noStreak.multiplier, withStreak.multiplier, accuracy: 0.001)
+        XCTAssertEqual(withStreak.streakMultiplier, 1.5, accuracy: 0.001)
+        XCTAssertGreaterThan(withStreak.exp, noStreak.exp)
+    }
+
+    func testStreakTiersPickHighestSatisfied() {
+        let tiers = BalanceConfig.fallback.streakTiers
+        XCTAssertEqual(StreakEngine.multiplier(forDays: 0, tiers: tiers), 1.0, accuracy: 0.001)
+        XCTAssertEqual(StreakEngine.multiplier(forDays: 6, tiers: tiers), 1.0, accuracy: 0.001)
+        XCTAssertEqual(StreakEngine.multiplier(forDays: 7, tiers: tiers), 1.1, accuracy: 0.001)
+        XCTAssertEqual(StreakEngine.multiplier(forDays: 29, tiers: tiers), 1.1, accuracy: 0.001)
+        XCTAssertEqual(StreakEngine.multiplier(forDays: 100, tiers: tiers), 1.5, accuracy: 0.001)
+        XCTAssertEqual(StreakEngine.multiplier(forDays: 5000, tiers: tiers), 1.5, accuracy: 0.001)
+    }
+
+    // MARK: - 规划引导
+
+    /// 这是产品的核心引导：提前规划的收益必须显著高于当天临时，
+    /// 否则 Tomorrow Planning 就失去意义
+    func testPlanningGapIsSubstantial() {
+        let planned = engine.evaluate(context(plannedAhead: true))
+        let impromptu = engine.evaluate(context(plannedAhead: false))
+        XCTAssertGreaterThan(Double(planned.exp), Double(impromptu.exp) * 1.9)
+    }
+
+    // MARK: - 技能分配
+
+    func testSkillEXPFollowsShares() {
+        let programming = UUID()
+        let gameDesign = UUID()
+        let result = engine.evaluate(
+            context(shares: [
+                SkillShare(skillID: programming, expShare: 1.0),
+                SkillShare(skillID: gameDesign, expShare: 0.5)
+            ])
+        )
+        XCTAssertEqual(result.skillEXP[programming], result.exp)
+        XCTAssertEqual(result.skillEXP[gameDesign], Int((Double(result.exp) * 0.5).rounded()))
+    }
+
+    func testZeroShareSkillsAreSkipped() {
+        let skill = UUID()
+        let result = engine.evaluate(context(shares: [SkillShare(skillID: skill, expShare: 0)]))
+        XCTAssertNil(result.skillEXP[skill])
+    }
+
+    func testDuplicateSkillSharesAccumulate() {
+        let skill = UUID()
+        let result = engine.evaluate(context(shares: [
+            SkillShare(skillID: skill, expShare: 0.5),
+            SkillShare(skillID: skill, expShare: 0.5)
+        ]))
+        XCTAssertEqual(result.skillEXP.count, 1)
+        XCTAssertEqual(result.skillEXP[skill], Int((Double(result.exp) * 0.5).rounded()) * 2)
+    }
+
+    // MARK: - 习惯
+
+    func testHabitRewardIgnoresQuestModifiers() {
+        let result = engine.evaluateHabit(streakDays: 0, globalStreakDays: 0, skillShares: [])
+        XCTAssertTrue(result.appliedModifiers.isEmpty)
+        XCTAssertEqual(result.exp, BalanceConfig.fallback.habitReward.baseEXP)
+        XCTAssertEqual(result.gold, BalanceConfig.fallback.habitReward.baseGold)
+    }
+
+    func testHabitRewardScalesWithStreak() {
+        let plain = engine.evaluateHabit(streakDays: 0, globalStreakDays: 0, skillShares: [])
+        let streaked = engine.evaluateHabit(streakDays: 100, globalStreakDays: 0, skillShares: [])
+        XCTAssertGreaterThan(streaked.exp, plain.exp)
+    }
+
+    /// 习惯的收益必须显著低于任务，否则玩家会用一键打卡绕过任务系统
+    func testHabitRewardStaysBelowQuestReward() {
+        let habit = engine.evaluateHabit(streakDays: 0, globalStreakDays: 0, skillShares: [])
+        let quest = engine.evaluate(context())
+        XCTAssertLessThan(habit.exp, quest.exp)
+    }
+}

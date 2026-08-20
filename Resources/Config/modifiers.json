@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "modifiers": [
+    {
+      "id": "planned_ahead",
+      "group": "planning",
+      "value": 0.2,
+      "label": "提前规划",
+      "detail": "任务在前一天或更早被规划"
+    },
+    {
+      "id": "same_day",
+      "group": "planning",
+      "value": -0.5,
+      "label": "当天临时",
+      "detail": "任务在当天临时创建"
+    },
+    {
+      "id": "on_time",
+      "group": "timeliness",
+      "value": 0.2,
+      "label": "按时完成",
+      "detail": "在截止时间前完成"
+    },
+    {
+      "id": "overdue",
+      "group": "timeliness",
+      "value": -0.3,
+      "label": "延期完成",
+      "detail": "超过截止时间才完成"
+    },
+    {
+      "id": "five_star",
+      "group": "priority",
+      "value": 0.3,
+      "label": "五星任务",
+      "detail": "最高难度或最高优先级"
+    },
+    {
+      "id": "consecutive",
+      "group": "continuity",
+      "value": 0.1,
+      "label": "连续完成",
+      "detail": "同一重复任务连续达成"
+    }
+  ]
+}

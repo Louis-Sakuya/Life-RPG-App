@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "theme_default",
+      "kind": "theme",
+      "name": "起始之地",
+      "detail": "默认主题",
+      "icon": "paintbrush.fill",
+      "price": 0,
+      "requiredLevel": 1,
+      "payload": { "accent": "#5B8DEF", "secondary": "#8E7CFF" }
+    },
+    {
+      "id": "theme_forest",
+      "kind": "theme",
+      "name": "翡翠密林",
+      "detail": "沉静的绿色调",
+      "icon": "leaf.fill",
+      "price": 400,
+      "requiredLevel": 5,
+      "payload": { "accent": "#2FA36B", "secondary": "#7BC96F" }
+    },
+    {
+      "id": "theme_ember",
+      "kind": "theme",
+      "name": "余烬熔炉",
+      "detail": "炽热的橙红色调",
+      "icon": "flame.fill",
+      "price": 600,
+      "requiredLevel": 10,
+      "payload": { "accent": "#E2603B", "secondary": "#F2A65A" }
+    },
+    {
+      "id": "theme_midnight",
+      "kind": "theme",
+      "name": "午夜星轨",
+      "detail": "深邃的靛蓝色调",
+      "icon": "moon.stars.fill",
+      "price": 900,
+      "requiredLevel": 20,
+      "payload": { "accent": "#4C4CE0", "secondary": "#9A6BFF" }
+    },
+    {
+      "id": "theme_sakura",
+      "kind": "theme",
+      "name": "落樱庭院",
+      "detail": "柔和的粉色调",
+      "icon": "camera.macro",
+      "price": 900,
+      "requiredLevel": 20,
+      "payload": { "accent": "#E86A92", "secondary": "#F3A6C0" }
+    },
+    {
+      "id": "theme_gold",
+      "kind": "theme",
+      "name": "黄金王座",
+      "detail": "传说级配色",
+      "icon": "crown.fill",
+      "price": 3000,
+      "requiredLevel": 50,
+      "payload": { "accent": "#D4A017", "secondary": "#F0CE6A" }
+    },
+
+    { "id": "frame_bronze", "kind": "avatarFrame", "name": "青铜边框", "detail": "朴素而可靠", "icon": "circle.hexagongrid.fill", "price": 200, "requiredLevel": 1, "payload": { "accent": "#B08D57" } },
+    { "id": "frame_silver", "kind": "avatarFrame", "name": "白银边框", "detail": "微光流转", "icon": "circle.hexagongrid.fill", "price": 700, "requiredLevel": 15, "payload": { "accent": "#AEB6BF" } },
+    { "id": "frame_gold", "kind": "avatarFrame", "name": "黄金边框", "detail": "耀眼夺目", "icon": "circle.hexagongrid.fill", "price": 2000, "requiredLevel": 35, "payload": { "accent": "#D4A017" } },
+    { "id": "frame_mythic", "kind": "avatarFrame", "name": "秘境边框", "detail": "只属于传说", "icon": "hexagon.fill", "price": 5000, "requiredLevel": 60, "payload": { "accent": "#9A6BFF" } },
+
+    { "id": "bg_parchment", "kind": "background", "name": "羊皮卷", "detail": "冒险者的手札", "icon": "scroll.fill", "price": 300, "requiredLevel": 3, "payload": { "accent": "#C9A227" } },
+    { "id": "bg_aurora", "kind": "background", "name": "极光", "detail": "北境之光", "icon": "sparkles", "price": 1200, "requiredLevel": 25, "payload": { "accent": "#3EC1B3" } },
+
+    { "id": "fx_levelup_burst", "kind": "effect", "name": "升级光爆", "detail": "升级时的粒子特效", "icon": "sparkle", "price": 800, "requiredLevel": 12, "payload": {} },
+    { "id": "fx_complete_spark", "kind": "effect", "name": "完成火花", "detail": "完成任务时的火花", "icon": "wand.and.stars", "price": 500, "requiredLevel": 8, "payload": {} },
+
+    { "id": "sfx_classic", "kind": "sound", "name": "经典音效包", "detail": "复古 RPG 提示音", "icon": "speaker.wave.2.fill", "price": 400, "requiredLevel": 5, "payload": {} },
+
+    { "id": "pet_slime", "kind": "pet", "name": "史莱姆", "detail": "会在首页跟着你", "icon": "drop.fill", "price": 1500, "requiredLevel": 18, "payload": {} },
+    { "id": "pet_owl", "kind": "pet", "name": "学者猫头鹰", "detail": "深夜的伙伴", "icon": "bird.fill", "price": 2200, "requiredLevel": 30, "payload": {} }
+  ]
+}
