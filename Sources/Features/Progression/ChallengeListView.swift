@@ -16,20 +16,20 @@ struct ChallengeListView: View {
 
             Section {
                 if ongoing.isEmpty {
-                    Text("没有进行中的挑战")
+                    Text(L10n.t("challenge.none"))
                         .foregroundStyle(.secondary)
                 }
                 ForEach(ongoing, id: \.challenge.id) { entry in
                     ChallengeRow(challenge: entry.challenge, progress: entry.progress, text: entry.text)
                 }
             } header: {
-                Text("进行中")
+                Text(L10n.t("challenge.ongoing"))
             } footer: {
-                Text("挑战是长期目标，进度由你的实际数据自动推导，不需要手动打勾。")
+                Text(L10n.t("challenge.footer"))
             }
 
             if !finished.isEmpty {
-                Section("已完成") {
+                Section(L10n.t("challenge.completed")) {
                     ForEach(finished, id: \.challenge.id) { entry in
                         ChallengeRow(challenge: entry.challenge, progress: 1, text: entry.text)
                     }
@@ -40,7 +40,7 @@ struct ChallengeListView: View {
                 Button {
                     isPresentingEditor = true
                 } label: {
-                    Label("自定义挑战", systemImage: "plus.circle")
+                    Label(L10n.t("challenge.custom"), systemImage: "plus.circle")
                 }
             }
         }

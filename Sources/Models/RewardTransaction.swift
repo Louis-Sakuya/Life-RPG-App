@@ -10,19 +10,6 @@ enum RewardSourceKind: String, Codable, CaseIterable, Sendable {
     case streakBonus
     case purchase
     case manual
-
-    var displayName: String {
-        switch self {
-        case .quest: return "任务"
-        case .habit: return "习惯"
-        case .challenge: return "挑战"
-        case .achievement: return "成就"
-        case .levelUp: return "升级"
-        case .streakBonus: return "连续奖励"
-        case .purchase: return "购买"
-        case .manual: return "手动调整"
-        }
-    }
 }
 
 /// 奖励流水账。所有 EXP / Gold 的变动都必须先落一条流水。

@@ -176,6 +176,10 @@ final class DayCycleService {
     private func markOverdueQuests(before day: GameDay) -> Int {
         let stale = quests.unfinishedQuests(before: day)
         for quest in stale where !quest.isOverdue {
+            // 跨多日的长期委托以截止日为准，开始日过了但还没到截止日不算逾期
+            if let dueAt = quest.dueAt, calendar.gameDay(for: dueAt) >= day {
+                continue
+            }
             quest.isOverdue = true
         }
         return stale.count

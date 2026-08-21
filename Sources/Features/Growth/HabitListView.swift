@@ -9,9 +9,9 @@ struct HabitListView: View {
             if store.habits.isEmpty {
                 EmptyStateView(
                     icon: "checkmark.circle",
-                    title: "还没有习惯",
-                    message: "阅读、喝水、运动、写日记……习惯是最稳定的经验来源。",
-                    actionTitle: "创建习惯",
+                    title: L10n.t("habit.empty.title"),
+                    message: L10n.t("habit.empty.message"),
+                    actionTitle: L10n.t("habit.empty.action"),
                     action: { isPresentingEditor = true }
                 )
                 .listRowBackground(Color.clear)
@@ -55,11 +55,11 @@ struct HabitDetailView: View {
                             .foregroundStyle(.orange)
                         Text("\(habit.streakCurrent)")
                             .font(.largeTitle.weight(.bold))
-                        Text("天")
+                        Text(L10n.t("habit.days"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                    Text("最长连续 \(habit.streakBest) 天 · 累计 \(habit.totalCheckIns) 次")
+                    Text(L10n.format("habit.best", habit.streakBest, habit.totalCheckIns))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -67,24 +67,27 @@ struct HabitDetailView: View {
                 .padding(.vertical, 8)
             }
 
-            Section("最近 30 天") {
+            Section(L10n.t("habit.last_30")) {
                 HabitHistoryGrid(habit: habit, days: recentDays(count: 30))
             }
 
-            Section("设置") {
-                LabeledContent("每日目标", value: "\(habit.dailyTarget) 次")
+            Section(L10n.t("common.settings")) {
+                LabeledContent(L10n.t("habit.daily_target"), value: L10n.format("habit.times_value", habit.dailyTarget))
                 if habit.hasReminder {
-                    LabeledContent("提醒时间", value: String(format: "%02d:%02d", habit.reminderHour, habit.reminderMinute))
+                    LabeledContent(
+                        L10n.t("settings.reminder_time"),
+                        value: String(format: "%02d:%02d", habit.reminderHour, habit.reminderMinute)
+                    )
                 } else {
-                    LabeledContent("提醒时间", value: "未设置")
+                    LabeledContent(L10n.t("settings.reminder_time"), value: L10n.t("habit.reminder_unset"))
                 }
             }
 
             Section {
-                Button("今天再打一次卡") {
+                Button(L10n.t("habit.check_again")) {
                     store.checkInHabit(habit)
                 }
-                Button("撤销今天一次", role: .destructive) {
+                Button(L10n.t("habit.undo_today"), role: .destructive) {
                     store.undoHabit(habit)
                 }
             }

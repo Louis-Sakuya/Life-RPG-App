@@ -11,7 +11,7 @@ struct ShopView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("分类", selection: $kind) {
+            Picker(L10n.t("shop.kind"), selection: $kind) {
                 ForEach(ShopItemKind.allCases, id: \.self) { kind in
                     Text(kind.displayName).tag(kind)
                 }
@@ -28,19 +28,18 @@ struct ShopView: View {
             .listStyle(.insetGrouped)
         }
         .background(Color(.systemGroupedBackground))
-        .navigationTitle("商店")
+        .navigationTitle(L10n.t("shop.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Label("\(store.player.gold)", systemImage: "dollarsign.circle.fill")
-                    .foregroundStyle(Color(hex: "#D4A017"))
+                GoldBadge(amount: store.player.gold, infinite: store.isTestShopSandboxEnabled)
             }
         }
-        .alert("无法购买", isPresented: Binding(
+        .alert(L10n.t("shop.cannot_buy"), isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )) {
-            Button("好", role: .cancel) { errorMessage = nil }
+            Button(L10n.t("common.ok"), role: .cancel) { errorMessage = nil }
         } message: {
             Text(errorMessage ?? "")
         }
@@ -61,21 +60,21 @@ struct ShopView: View {
             }
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(item.name)
+                Text(item.localizedName)
                     .font(.body.weight(.medium))
-                if !item.detail.isEmpty {
-                    Text(item.detail)
+                if !item.localizedDetail.isEmpty {
+                    Text(item.localizedDetail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 HStack(spacing: 6) {
-                    if item.requiredLevel > 1 {
+                    if item.requiredLevel > 1 && !store.isTestShopSandboxEnabled {
                         StatPill(icon: "lock.fill", text: "Lv\(item.requiredLevel)", tint: .secondary)
                     }
                     if item.price > 0 {
                         StatPill(icon: "dollarsign.circle.fill", text: "\(item.price)", tint: Color(hex: "#D4A017"))
                     } else {
-                        StatPill(icon: "gift.fill", text: "免费", tint: .green)
+                        StatPill(icon: "gift.fill", text: L10n.t("common.free"), tint: .green)
                     }
                 }
             }
@@ -83,13 +82,13 @@ struct ShopView: View {
             Spacer(minLength: 0)
 
             if owned {
-                Button(equipped ? "使用中" : "使用") {
+                Button(equipped ? L10n.t("common.in_use") : L10n.t("common.use")) {
                     store.equip(item)
                 }
                 .buttonStyle(.bordered)
                 .disabled(equipped || !isEquippable(item))
             } else {
-                Button("购买") {
+                Button(L10n.t("common.buy")) {
                     if let error = store.purchase(item) {
                         errorMessage = error.errorDescription
                     }

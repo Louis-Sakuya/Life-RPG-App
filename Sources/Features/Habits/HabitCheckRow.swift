@@ -61,9 +61,9 @@ struct HabitCheckRow: View {
         .contentShape(Rectangle())
         .contextMenu {
             if habit.dailyTarget > 1 {
-                Button("补满今天") { store.toggleHabit(habit) }
+                Button(L10n.t("habit.fill_today")) { store.toggleHabit(habit) }
             }
-            Button("撤销一次", role: .destructive) { store.undoHabit(habit) }
+            Button(L10n.t("habit.undo_once"), role: .destructive) { store.undoHabit(habit) }
         }
     }
 }

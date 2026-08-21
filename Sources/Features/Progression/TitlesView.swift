@@ -12,7 +12,7 @@ struct TitlesView: View {
                     store.equipTitle(nil)
                 } label: {
                     HStack {
-                        Text("不佩戴称号")
+                        Text(L10n.t("title.none"))
                         Spacer()
                         if store.player.currentTitleID == nil {
                             Image(systemName: "checkmark")
@@ -26,9 +26,9 @@ struct TitlesView: View {
             let entries = store.ruleProgress(kind: .title)
             let unlocked = entries.filter(\.isUnlocked)
 
-            Section("已获得") {
+            Section(L10n.t("unlock.obtained")) {
                 if unlocked.isEmpty {
-                    Text("还没有称号，去完成成就吧")
+                    Text(L10n.t("title.empty"))
                         .foregroundStyle(.secondary)
                 }
                 ForEach(unlocked, id: \.rule.id) { entry in
@@ -40,8 +40,8 @@ struct TitlesView: View {
                                 .foregroundStyle(palette.accent)
                                 .frame(width: 26)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.rule.name)
-                                Text(entry.rule.detail)
+                                Text(entry.rule.localizedName)
+                                Text(entry.rule.localizedDetail)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -56,14 +56,14 @@ struct TitlesView: View {
                 }
             }
 
-            Section("未解锁") {
+            Section(L10n.t("unlock.locked")) {
                 ForEach(entries.filter { !$0.isUnlocked }, id: \.rule.id) { entry in
                     UnlockRow(rule: entry.rule, progress: entry.progress, text: entry.text, isUnlocked: false)
                 }
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("称号")
+        .navigationTitle(L10n.t("profile.titles"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

@@ -24,7 +24,7 @@ struct HeatmapView: View {
             }
 
             HStack(spacing: 6) {
-                Text("少")
+                Text(L10n.t("stats.less"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 ForEach(0...4, id: \.self) { level in
@@ -32,7 +32,7 @@ struct HeatmapView: View {
                         .fill(color(for: level))
                         .frame(width: cellSize, height: cellSize)
                 }
-                Text("多")
+                Text(L10n.t("stats.more"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

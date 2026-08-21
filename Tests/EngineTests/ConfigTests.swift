@@ -31,8 +31,14 @@ final class ConfigTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(balance.durationFactor.min, 1.0)
         XCTAssertGreaterThan(balance.playerCurve.base, 0)
         XCTAssertGreaterThan(balance.skillCurve.base, 0)
+        XCTAssertGreaterThan(balance.statCurve.base, 0)
         XCTAssertGreaterThan(balance.playerCurve.maxLevel, 1)
         XCTAssertFalse(balance.streakTiers.isEmpty)
+        XCTAssertGreaterThanOrEqual(balance.initialSkillSlots, 1)
+        XCTAssertGreaterThan(balance.statSkillXPBonusPerLevel, 0)
+        XCTAssertGreaterThan(balance.skillQuestBonusPerLevel, 0)
+        XCTAssertGreaterThanOrEqual(balance.statSkillXPBonusMax, 1)
+        XCTAssertGreaterThanOrEqual(balance.skillQuestBonusMax, 1)
     }
 
     /// 连续档位必须随天数单调递增，否则"连续更久反而加成更低"
@@ -139,5 +145,35 @@ final class ConfigTests: XCTestCase {
         for item in config.shop.items(of: .theme) {
             XCTAssertNotNil(item.accentHex, "主题 \(item.id) 缺少 accent 颜色")
         }
+    }
+
+    // MARK: - 属性与技能目录
+
+    func testFortuneTiersAreSane() {
+        let fortune = config.fortune
+        XCTAssertGreaterThan(fortune.luckyGrowthChance, 0)
+        XCTAssertLessThanOrEqual(fortune.luckyGrowthChance, 1)
+        XCTAssertGreaterThan(fortune.luckyXPOnGrowth, 0)
+        XCTAssertEqual(fortune.fortunes.count, 4)
+        let weight = fortune.fortunes.reduce(0.0) { $0 + $1.weight }
+        XCTAssertGreaterThan(weight, 0)
+        for tier in fortune.fortunes {
+            XCTAssertGreaterThanOrEqual(tier.xpBonus, 0)
+            XCTAssertGreaterThanOrEqual(tier.goldBonus, 0)
+        }
+    }
+
+    func testSkillCatalogAffinitiesSumToOne() {
+        for preset in config.skillCatalog.skills {
+            let total = preset.parsedAffinities.reduce(0.0) { $0 + $1.weight }
+            XCTAssertEqual(total, 1.0, accuracy: 0.001, "技能 \(preset.id) 的属性亲和不是 100%")
+            XCTAssertFalse(preset.categories.isEmpty, "技能 \(preset.id) 缺少类别")
+            XCTAssertNil(preset.affinities["lucky"], "Lucky 不能出现在技能亲和里")
+        }
+    }
+
+    func testSkillCatalogIDsAreUnique() {
+        let ids = config.skillCatalog.skills.map(\.id)
+        XCTAssertEqual(ids.count, Set(ids).count)
     }
 }

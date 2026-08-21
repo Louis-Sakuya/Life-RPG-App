@@ -15,42 +15,42 @@ struct HabitEditorView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("名称") {
-                    TextField("例如 阅读、喝水、冥想", text: $name)
+                Section(L10n.t("common.name")) {
+                    TextField(L10n.t("habit.name_placeholder"), text: $name)
                 }
 
-                Section("图标与颜色") {
+                Section(L10n.t("habit.icon_color")) {
                     IconPicker(selection: $iconName, tint: Color(hex: colorHex))
                     ColorPickerRow(selection: $colorHex)
                 }
 
                 Section {
-                    Stepper("每天 \(dailyTarget) 次", value: $dailyTarget, in: 1...20)
+                    Stepper(L10n.format("habit.times_per_day", dailyTarget), value: $dailyTarget, in: 1...20)
                 } header: {
-                    Text("每日目标")
+                    Text(L10n.t("habit.daily_target"))
                 } footer: {
-                    Text("奖励只在达成当日目标的那一次发放，所以把目标拆得更细不会拿到更多经验。")
+                    Text(L10n.t("habit.target_footer"))
                 }
 
-                Section("提醒") {
-                    Toggle("每天提醒", isOn: $hasReminder)
+                Section(L10n.t("habit.reminder")) {
+                    Toggle(L10n.t("habit.remind_daily"), isOn: $hasReminder)
                     if hasReminder {
-                        DatePicker("时间", selection: $reminderTime, displayedComponents: .hourAndMinute)
+                        DatePicker(L10n.t("habit.time"), selection: $reminderTime, displayedComponents: .hourAndMinute)
                     }
                 }
 
-                Section("技能经验分配") {
+                Section(L10n.t("quest.skill_share")) {
                     SkillShareEditor(skills: store.skills, shares: $shares)
                 }
             }
-            .navigationTitle("新建习惯")
+            .navigationTitle(L10n.t("habit.new"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button(L10n.t("common.cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("保存", action: save)
+                    Button(L10n.t("common.save"), action: save)
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }

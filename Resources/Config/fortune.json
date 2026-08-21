@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "luckyGrowthChance": 0.002,
+  "luckyXPOnGrowth": 18,
+  "luckyDay": {
+    "baseChance": 0.03,
+    "chancePerLuckyLevel": 0.005,
+    "maxChance": 0.18
+  },
+  "fortunes": [
+    {
+      "id": "fortune_1",
+      "name": "小吉",
+      "englishName": "Fortune I",
+      "weight": 50,
+      "xpBonus": 0.10,
+      "goldBonus": 0.10,
+      "bonusGold": 0,
+      "bonusEXP": 0
+    },
+    {
+      "id": "fortune_2",
+      "name": "中吉",
+      "englishName": "Fortune II",
+      "weight": 30,
+      "xpBonus": 0.25,
+      "goldBonus": 0.25,
+      "bonusGold": 0,
+      "bonusEXP": 0
+    },
+    {
+      "id": "fortune_3",
+      "name": "大吉",
+      "englishName": "Fortune III",
+      "weight": 15,
+      "xpBonus": 0.50,
+      "goldBonus": 0.50,
+      "bonusGold": 0,
+      "bonusEXP": 0
+    },
+    {
+      "id": "fortune_4",
+      "name": "天命",
+      "englishName": "Fortune IV",
+      "weight": 5,
+      "xpBonus": 1.0,
+      "goldBonus": 1.0,
+      "bonusGold": 50,
+      "bonusEXP": 0
+    }
+  ]
+}

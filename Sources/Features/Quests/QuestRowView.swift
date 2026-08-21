@@ -35,10 +35,10 @@ struct QuestRowView: View {
                     StatPill(icon: quest.kind.iconName, text: quest.kind.title, tint: kindTint)
                     DifficultyStars(value: quest.difficultyRaw, tint: .orange)
                     if quest.priority == .critical {
-                        StatPill(icon: "exclamationmark", text: "最高", tint: .red)
+                        StatPill(icon: "exclamationmark", text: L10n.t("quest.priority.critical"), tint: .red)
                     }
                     if quest.isOverdue && !quest.isCompleted {
-                        StatPill(icon: "clock.badge.exclamationmark", text: "已延期", tint: .red)
+                        StatPill(icon: "clock.badge.exclamationmark", text: L10n.t("quest.status.overdue"), tint: .red)
                     }
                     if let remaining = remainingText {
                         StatPill(icon: "timer", text: remaining, tint: .secondary)
@@ -74,9 +74,14 @@ struct QuestRowView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Color(hex: "#D4A017"))
             if let highlight = reward.appliedModifiers.max(by: { abs($0.value) < abs($1.value) }) {
-                Text("\(highlight.label) \(highlight.signedPercentText)")
+                Text("\(highlight.localizedLabel) \(highlight.signedPercentText)")
                     .font(.caption2)
                     .foregroundStyle(highlight.value >= 0 ? Color.green : Color.red)
+            }
+            if let fortune = reward.fortuneLabel, reward.fortuneMultiplier > 1 {
+                Text(fortune)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color(hex: HiddenStatID.lucky.colorHex))
             }
         }
     }
@@ -92,10 +97,10 @@ struct QuestRowView: View {
     private var remainingText: String? {
         guard let dueAt = quest.dueAt, !quest.isCompleted else { return nil }
         let interval = dueAt.timeIntervalSinceNow
-        guard interval > 0 else { return "已超时" }
+        guard interval > 0 else { return L10n.t("quest.status.overtime") }
         let hours = Int(interval) / 3600
-        if hours >= 24 { return "剩 \(hours / 24) 天" }
-        if hours >= 1 { return "剩 \(hours) 小时" }
-        return "剩 \(max(1, Int(interval) / 60)) 分钟"
+        if hours >= 24 { return L10n.format("quest.remaining.days", hours / 24) }
+        if hours >= 1 { return L10n.format("quest.remaining.hours", hours) }
+        return L10n.format("quest.remaining.minutes", max(1, Int(interval) / 60))
     }
 }

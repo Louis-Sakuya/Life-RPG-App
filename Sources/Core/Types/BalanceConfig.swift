@@ -41,9 +41,18 @@ struct BalanceConfig: Codable, Sendable {
     var multiplierClamp: Clamp
     var playerCurve: LevelCurveConfig
     var skillCurve: LevelCurveConfig
+    var statCurve: LevelCurveConfig
     var streakTiers: [StreakTier]
     var levelUpReward: LevelUpReward
     var habitReward: HabitReward
+    /// 开局可掌握的技能栏位数。升级选择额外栏位后才会变多。
+    var initialSkillSlots: Int
+    /// 核心属性每级给匹配技能的经验加成
+    var statSkillXPBonusPerLevel: Double
+    var statSkillXPBonusMax: Double
+    /// 技能每级给关联任务的经验与金币加成
+    var skillQuestBonusPerLevel: Double
+    var skillQuestBonusMax: Double
 
     func baseEXP(for difficulty: QuestDifficulty) -> Double {
         difficultyBaseEXP[String(difficulty.rawValue)] ?? 20
@@ -58,13 +67,19 @@ struct BalanceConfig: Codable, Sendable {
         multiplierClamp: .init(min: 0.2, max: 3.0),
         playerCurve: .init(base: 100, exponent: 1.5, maxLevel: 100),
         skillCurve: .init(base: 60, exponent: 1.6, maxLevel: 100),
+        statCurve: .init(base: 80, exponent: 1.55, maxLevel: 100),
         streakTiers: [
             .init(days: 7, multiplier: 1.1),
             .init(days: 30, multiplier: 1.2),
             .init(days: 100, multiplier: 1.5)
         ],
         levelUpReward: .init(goldBase: 50, goldPerLevel: 10),
-        habitReward: .init(baseEXP: 12, baseGold: 6)
+        habitReward: .init(baseEXP: 12, baseGold: 6),
+        initialSkillSlots: 5,
+        statSkillXPBonusPerLevel: 0.03,
+        statSkillXPBonusMax: 2.5,
+        skillQuestBonusPerLevel: 0.02,
+        skillQuestBonusMax: 2.0
     )
 }
 

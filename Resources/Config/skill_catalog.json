@@ -1,0 +1,346 @@
+{
+  "version": 1,
+  "categories": [
+    { "id": "fitness", "name": "体能", "icon": "figure.run" },
+    { "id": "knowledge", "name": "知识", "icon": "book.fill" },
+    { "id": "language", "name": "语言", "icon": "character.book.closed.fill" },
+    { "id": "discipline", "name": "自律", "icon": "alarm.fill" },
+    { "id": "time", "name": "时间", "icon": "calendar" },
+    { "id": "organization", "name": "组织", "icon": "tray.full.fill" },
+    { "id": "daily_living", "name": "日常", "icon": "house.fill" },
+    { "id": "finance", "name": "财务", "icon": "yensign.circle.fill" },
+    { "id": "independence", "name": "独立", "icon": "figure.walk" },
+    { "id": "communication", "name": "沟通", "icon": "bubble.left.and.bubble.right.fill" },
+    { "id": "leadership", "name": "领导", "icon": "flag.fill" },
+    { "id": "art", "name": "艺术", "icon": "paintpalette.fill" },
+    { "id": "design", "name": "设计", "icon": "pencil.and.outline" },
+    { "id": "media", "name": "影像", "icon": "camera.fill" },
+    { "id": "craft", "name": "手作", "icon": "hammer.fill" }
+  ],
+  "skills": [
+    {
+      "id": "running",
+      "name": "Running",
+      "aliases": ["跑步"],
+      "icon": "figure.run",
+      "color": "#E2603B",
+      "categories": ["fitness"],
+      "affinities": { "body": 1.0 }
+    },
+    {
+      "id": "swimming",
+      "name": "Swimming",
+      "aliases": ["游泳"],
+      "icon": "figure.pool.swim",
+      "color": "#3EC1B3",
+      "categories": ["fitness"],
+      "affinities": { "body": 0.7, "life": 0.3 }
+    },
+    {
+      "id": "walking",
+      "name": "Walking",
+      "aliases": ["步行"],
+      "icon": "figure.walk",
+      "color": "#2FA36B",
+      "categories": ["fitness"],
+      "affinities": { "body": 0.8, "life": 0.2 }
+    },
+    {
+      "id": "cycling",
+      "name": "Cycling",
+      "aliases": ["骑行"],
+      "icon": "bicycle",
+      "color": "#2FA36B",
+      "categories": ["fitness"],
+      "affinities": { "body": 0.85, "life": 0.15 }
+    },
+    {
+      "id": "hiking",
+      "name": "Hiking",
+      "aliases": ["徒步"],
+      "icon": "figure.hiking",
+      "color": "#C9A227",
+      "categories": ["fitness"],
+      "affinities": { "body": 0.7, "life": 0.3 }
+    },
+    {
+      "id": "strength_training",
+      "name": "Strength Training",
+      "aliases": ["力量训练", "Fitness", "健身"],
+      "icon": "figure.strengthtraining.traditional",
+      "color": "#E2603B",
+      "categories": ["fitness"],
+      "affinities": { "body": 1.0 }
+    },
+    {
+      "id": "yoga",
+      "name": "Yoga",
+      "aliases": ["瑜伽", "Stretching"],
+      "icon": "figure.yoga",
+      "color": "#9A6BFF",
+      "categories": ["fitness", "discipline"],
+      "affinities": { "body": 0.7, "life": 0.3 }
+    },
+    {
+      "id": "dancing",
+      "name": "Dancing",
+      "aliases": ["舞蹈"],
+      "icon": "figure.dance",
+      "color": "#E86A92",
+      "categories": ["fitness", "art"],
+      "affinities": { "body": 0.6, "creation": 0.3, "social": 0.1 }
+    },
+    {
+      "id": "martial_arts",
+      "name": "Martial Arts",
+      "aliases": ["武术"],
+      "icon": "figure.martial.arts",
+      "color": "#E2603B",
+      "categories": ["fitness"],
+      "affinities": { "body": 0.8, "life": 0.2 }
+    },
+    {
+      "id": "reading",
+      "name": "Reading",
+      "aliases": ["阅读"],
+      "icon": "book.fill",
+      "color": "#C9A227",
+      "categories": ["knowledge"],
+      "affinities": { "mind": 0.9, "life": 0.1 }
+    },
+    {
+      "id": "studying",
+      "name": "Studying",
+      "aliases": ["学习"],
+      "icon": "studentdesk",
+      "color": "#5B8DEF",
+      "categories": ["knowledge"],
+      "affinities": { "mind": 0.85, "life": 0.15 }
+    },
+    {
+      "id": "programming",
+      "name": "Programming",
+      "aliases": ["编程"],
+      "icon": "chevron.left.forwardslash.chevron.right",
+      "color": "#5B8DEF",
+      "categories": ["knowledge", "design"],
+      "affinities": { "mind": 0.7, "creation": 0.3 }
+    },
+    {
+      "id": "mathematics",
+      "name": "Mathematics",
+      "aliases": ["数学", "Logic"],
+      "icon": "function",
+      "color": "#5B8DEF",
+      "categories": ["knowledge"],
+      "affinities": { "mind": 1.0 }
+    },
+    {
+      "id": "japanese",
+      "name": "Japanese",
+      "aliases": ["日语"],
+      "icon": "character.book.closed.fill",
+      "color": "#E2603B",
+      "categories": ["language"],
+      "affinities": { "mind": 0.8, "social": 0.2 }
+    },
+    {
+      "id": "english",
+      "name": "English",
+      "aliases": ["英语", "Language Learning"],
+      "icon": "character.book.closed.fill",
+      "color": "#E2603B",
+      "categories": ["language"],
+      "affinities": { "mind": 0.8, "social": 0.2 }
+    },
+    {
+      "id": "research",
+      "name": "Research",
+      "aliases": ["研究"],
+      "icon": "magnifyingglass",
+      "color": "#5B8DEF",
+      "categories": ["knowledge"],
+      "affinities": { "mind": 0.9, "life": 0.1 }
+    },
+    {
+      "id": "writing",
+      "name": "Writing",
+      "aliases": ["写作"],
+      "icon": "pencil.and.outline",
+      "color": "#8E7CFF",
+      "categories": ["knowledge", "art"],
+      "affinities": { "mind": 0.4, "creation": 0.6 }
+    },
+    {
+      "id": "habit_building",
+      "name": "Habit Building",
+      "aliases": ["习惯养成"],
+      "icon": "checkmark.circle.fill",
+      "color": "#2FA36B",
+      "categories": ["discipline"],
+      "affinities": { "life": 1.0 }
+    },
+    {
+      "id": "planning",
+      "name": "Planning",
+      "aliases": ["规划", "Scheduling"],
+      "icon": "calendar.badge.clock",
+      "color": "#2FA36B",
+      "categories": ["time"],
+      "affinities": { "life": 0.8, "mind": 0.2 }
+    },
+    {
+      "id": "task_management",
+      "name": "Task Management",
+      "aliases": ["任务管理", "Organization"],
+      "icon": "checklist",
+      "color": "#2FA36B",
+      "categories": ["organization"],
+      "affinities": { "life": 1.0 }
+    },
+    {
+      "id": "cooking",
+      "name": "Cooking",
+      "aliases": ["烹饪", "Meal Preparation"],
+      "icon": "fork.knife",
+      "color": "#C9A227",
+      "categories": ["daily_living", "craft"],
+      "affinities": { "life": 0.6, "creation": 0.4 }
+    },
+    {
+      "id": "cleaning",
+      "name": "Cleaning",
+      "aliases": ["打扫", "Laundry"],
+      "icon": "sparkles",
+      "color": "#3EC1B3",
+      "categories": ["daily_living"],
+      "affinities": { "life": 1.0 }
+    },
+    {
+      "id": "budgeting",
+      "name": "Budgeting",
+      "aliases": ["记账", "Saving", "Personal Finance"],
+      "icon": "yensign.circle.fill",
+      "color": "#D4A017",
+      "categories": ["finance"],
+      "affinities": { "life": 0.8, "mind": 0.2 }
+    },
+    {
+      "id": "conversation",
+      "name": "Conversation",
+      "aliases": ["交谈", "Networking"],
+      "icon": "bubble.left.and.bubble.right.fill",
+      "color": "#E86A92",
+      "categories": ["communication"],
+      "affinities": { "social": 1.0 }
+    },
+    {
+      "id": "public_speaking",
+      "name": "Public Speaking",
+      "aliases": ["演讲", "Interview"],
+      "icon": "mic.fill",
+      "color": "#E86A92",
+      "categories": ["communication", "leadership"],
+      "affinities": { "social": 0.8, "creation": 0.2 }
+    },
+    {
+      "id": "listening",
+      "name": "Listening",
+      "aliases": ["倾听"],
+      "icon": "ear.fill",
+      "color": "#E86A92",
+      "categories": ["communication"],
+      "affinities": { "social": 1.0 }
+    },
+    {
+      "id": "negotiation",
+      "name": "Negotiation",
+      "aliases": ["谈判", "Debate"],
+      "icon": "person.line.dotted.person.fill",
+      "color": "#E86A92",
+      "categories": ["communication"],
+      "affinities": { "social": 0.7, "mind": 0.3 }
+    },
+    {
+      "id": "teamwork",
+      "name": "Teamwork",
+      "aliases": ["协作", "Teaching"],
+      "icon": "person.3.fill",
+      "color": "#E86A92",
+      "categories": ["communication", "leadership"],
+      "affinities": { "social": 0.8, "life": 0.2 }
+    },
+    {
+      "id": "leadership",
+      "name": "Leadership",
+      "aliases": ["领导力"],
+      "icon": "flag.fill",
+      "color": "#E86A92",
+      "categories": ["leadership"],
+      "affinities": { "social": 0.7, "life": 0.3 }
+    },
+    {
+      "id": "drawing",
+      "name": "Drawing",
+      "aliases": ["绘画"],
+      "icon": "pencil.tip.crop.circle",
+      "color": "#9A6BFF",
+      "categories": ["art"],
+      "affinities": { "creation": 1.0 }
+    },
+    {
+      "id": "music",
+      "name": "Music",
+      "aliases": ["音乐"],
+      "icon": "music.note",
+      "color": "#9A6BFF",
+      "categories": ["art"],
+      "affinities": { "creation": 0.9, "mind": 0.1 }
+    },
+    {
+      "id": "photography",
+      "name": "Photography",
+      "aliases": ["摄影"],
+      "icon": "camera.fill",
+      "color": "#9A6BFF",
+      "categories": ["media"],
+      "affinities": { "creation": 0.8, "life": 0.2 }
+    },
+    {
+      "id": "design",
+      "name": "Design",
+      "aliases": ["设计"],
+      "icon": "paintbrush.pointed.fill",
+      "color": "#9A6BFF",
+      "categories": ["design"],
+      "affinities": { "creation": 0.7, "mind": 0.3 }
+    },
+    {
+      "id": "game_development",
+      "name": "Game Development",
+      "aliases": ["游戏开发", "Game Design"],
+      "icon": "gamecontroller.fill",
+      "color": "#9A6BFF",
+      "categories": ["design"],
+      "affinities": { "creation": 0.6, "mind": 0.4 }
+    },
+    {
+      "id": "video_editing",
+      "name": "Video Editing",
+      "aliases": ["视频剪辑", "3D Modeling"],
+      "icon": "film.fill",
+      "color": "#9A6BFF",
+      "categories": ["media"],
+      "affinities": { "creation": 0.8, "mind": 0.2 }
+    },
+    {
+      "id": "crafting",
+      "name": "Crafting",
+      "aliases": ["手工"],
+      "icon": "hammer.fill",
+      "color": "#C9A227",
+      "categories": ["craft"],
+      "affinities": { "creation": 0.7, "life": 0.3 }
+    }
+  ]
+}

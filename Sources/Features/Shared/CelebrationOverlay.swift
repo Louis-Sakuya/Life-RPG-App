@@ -11,11 +11,26 @@ struct CelebrationOverlay: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay(alignment: .top) {
-                if let event = store.pendingLevelUps.first {
+                if let event = store.pendingFortunes.first {
+                    banner(
+                        icon: event.icon,
+                        title: event.title,
+                        subtitle: event.subtitle
+                    )
+                    .id(event.id)
+                    .task(id: event.id) {
+                        try? await Task.sleep(for: .seconds(2.4))
+                        if !store.pendingFortunes.isEmpty {
+                            store.pendingFortunes.removeFirst()
+                        }
+                    }
+                } else if let event = store.pendingLevelUps.first {
                     banner(
                         icon: event.skillName == nil ? "sparkles" : "star.circle.fill",
-                        title: event.skillName == nil ? "升级！Lv\(event.level)" : "\(event.skillName!) 升到 Lv\(event.level)",
-                        subtitle: event.goldReward > 0 ? "获得 \(event.goldReward) 金币" : nil
+                        title: event.skillName == nil
+                            ? L10n.format("celebrate.level_up", event.level)
+                            : L10n.format("celebrate.named_level", event.localizedSubjectName ?? event.skillName!, event.level),
+                        subtitle: event.goldReward > 0 ? L10n.format("celebrate.gold", event.goldReward) : nil
                     )
                     .id(event.id)
                     .task(id: event.id) {
@@ -27,7 +42,7 @@ struct CelebrationOverlay: ViewModifier {
                 } else if let unlock = store.pendingUnlocks.first {
                     banner(
                         icon: unlock.icon,
-                        title: "\(unlock.kind.displayName)解锁：\(unlock.name)",
+                        title: L10n.format("unlock.unlocked_banner", unlock.kind.displayName, unlock.localizedName),
                         subtitle: unlock.detail.isEmpty ? nil : unlock.detail
                     )
                     .id(unlock.id)
@@ -41,6 +56,7 @@ struct CelebrationOverlay: ViewModifier {
             }
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: store.pendingLevelUps.count)
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: store.pendingUnlocks.count)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: store.pendingFortunes.count)
     }
 
     private func banner(icon: String, title: String, subtitle: String?) -> some View {

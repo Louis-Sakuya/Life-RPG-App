@@ -11,24 +11,32 @@ final class QuestService {
     private let quests: QuestRepository
     private let records: RecordRepository
     private let rewards: RewardService
+    private let lucky: LuckyService
     private let aggregates: DailyAggregateService
     private let engine: RewardEngine
 
-    init(context: ModelContext, config: GameConfig, calendar: GameCalendar, rewards: RewardService) {
+    init(
+        context: ModelContext,
+        config: GameConfig,
+        calendar: GameCalendar,
+        rewards: RewardService,
+        lucky: LuckyService
+    ) {
         self.context = context
         self.config = config
         self.calendar = calendar
         self.quests = QuestRepository(context: context)
         self.records = RecordRepository(context: context)
         self.rewards = rewards
+        self.lucky = lucky
         self.aggregates = DailyAggregateService(context: context)
         self.engine = RewardEngine(config: config)
     }
 
     // MARK: - 创建与编辑
 
-    /// 任务类型不由调用方指定，而是从"什么时候创建、计划哪天做"推导出来。
-    /// 这是 Tomorrow Planning 能自动生效的关键：没有任何定时迁移逻辑。
+    /// 默认仍由创建日与计划日派生类型。工会发布向导可以传入 `preferredKind`，
+    /// 让用户明确张贴到主线或支线栏，而不被日期规则改写展示位置。
     @discardableResult
     func createQuest(
         title: String,
@@ -39,13 +47,14 @@ final class QuestService {
         estimatedMinutes: Int = 30,
         scheduledDay: GameDay,
         dueAt: Date? = nil,
-        skillShares: [SkillShare] = []
+        skillShares: [SkillShare] = [],
+        preferredKind: QuestKind? = nil
     ) -> Quest {
         let today = calendar.today
         let quest = Quest(
             title: title,
             detail: detail,
-            kind: Quest.derivedKind(createdDay: today, scheduledDay: scheduledDay, fromTemplate: false),
+            kind: preferredKind ?? Quest.derivedKind(createdDay: today, scheduledDay: scheduledDay, fromTemplate: false),
             difficulty: difficulty,
             priority: priority,
             tags: tags,
@@ -143,7 +152,8 @@ final class QuestService {
             quest.streakAtCompletion = template.streak.current
         }
 
-        let result = engine.evaluate(makeContext(for: quest, player: player, completedAt: now))
+        let fortune = lucky.rollDayIfNeeded(player: player, on: completedDay)
+        let result = engine.evaluate(makeContext(for: quest, player: player, completedAt: now, fortune: fortune))
         rewards.grant(
             result,
             to: player,
@@ -152,6 +162,7 @@ final class QuestService {
             title: quest.title,
             on: completedDay
         )
+        lucky.rollGrowth(player: player)
 
         player.totalQuestsCompleted += 1
         if quest.kind == .side {
@@ -214,13 +225,16 @@ final class QuestService {
     /// 完成前的预估收益，用于任务卡片上直接展示"做完能拿多少"。
     /// 让玩家在决定先做哪件事之前就看到差异，是奖励系统产生引导力的前提。
     func previewReward(for quest: Quest, player: Player) -> RewardResult {
-        engine.preview(makeContext(for: quest, player: player, completedAt: Date()))
+        let fortune = lucky.activeFortune(for: player, on: calendar.today)
+        return engine.preview(makeContext(for: quest, player: player, completedAt: Date(), fortune: fortune))
     }
 
     // MARK: - 内部
 
-    private func makeContext(for quest: Quest, player: Player, completedAt: Date) -> RewardContext {
+    private func makeContext(for quest: Quest, player: Player, completedAt: Date, fortune: FortuneTier?) -> RewardContext {
         let template = quest.templateID.flatMap { quests.template(id: $0) }
+        let shares = quests.skillShares(of: quest)
+        let profile = RewardGrowthProfile.make(shares: shares, player: player, context: context, config: config)
         return RewardContext(
             difficulty: quest.difficulty,
             priority: quest.priority,
@@ -232,7 +246,11 @@ final class QuestService {
             completedAt: completedAt,
             consecutiveStreak: template?.streak.current ?? quest.streakAtCompletion,
             globalStreakDays: player.loginStreakCurrent,
-            skillShares: quests.skillShares(of: quest)
+            skillShares: shares,
+            fortune: fortune,
+            skillLevels: profile.skillLevels,
+            skillAffinities: profile.skillAffinities,
+            statLevels: profile.statLevels
         )
     }
 }

@@ -1,14 +1,15 @@
 import SwiftUI
 
-/// 首页只展示今天。这是产品的核心约束：打开应用不应该看到一个无穷的待办列表，
-/// 而是"今天这一场冒险"。
+/// 首页只展示今天。打开应用看到的是一场正在进行的冒险，
+/// 而不是一张无穷的待办清单。任务被收进冒险者工会的告示栏。
 struct HomeView: View {
     @Environment(GameStore.self) private var store
     @Environment(\.palette) private var palette
 
-    @State private var quickAddText = ""
-    @State private var isPresentingEditor = false
-    @State private var isPresentingPlanning = false
+    @State private var publishLaunch: QuestPublishLaunch?
+    @State private var isPresentingCalendar = false
+
+    private var goldTint: Color { Color(hex: "#D4A017") }
 
     var body: some View {
         NavigationStack {
@@ -16,12 +17,16 @@ struct HomeView: View {
                 VStack(spacing: AppMetrics.sectionSpacing) {
                     PlayerHeaderView()
 
+                    if let fortune = store.todayFortune {
+                        luckyDayBanner(fortune)
+                    }
+
                     if !store.overdueQuests.isEmpty {
                         overdueSection
                     }
 
-                    mainQuestSection
-                    sideQuestSection
+                    guildBoard
+
                     habitSection
                     todayStatsSection
                 }
@@ -29,21 +34,28 @@ struct HomeView: View {
                 .padding(.bottom, 24)
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("今日")
+            .navigationTitle(L10n.t("home.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isPresentingCalendar = true
+                    } label: {
+                        Label(L10n.t("home.calendar"), systemImage: "calendar")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        isPresentingPlanning = true
+                        publishLaunch = QuestPublishLaunch()
                     } label: {
-                        Label("规划明天", systemImage: "calendar.badge.plus")
+                        Label(L10n.t("home.publish"), systemImage: "scroll.fill")
                     }
                 }
             }
-            .sheet(isPresented: $isPresentingEditor) {
-                QuestEditorView(quest: nil, defaultDay: store.today)
+            .sheet(item: $publishLaunch) { launch in
+                QuestPublishWizardView(initialBoardKind: launch.boardKind)
             }
-            .sheet(isPresented: $isPresentingPlanning) {
+            .sheet(isPresented: $isPresentingCalendar) {
                 PlanningView()
             }
             .refreshable {
@@ -52,19 +64,211 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - 分区
+    // MARK: - 工会任务栏
+
+    private var guildBoard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            guildHeader
+
+            guildLane(
+                title: L10n.t("home.main.title"),
+                subtitle: L10n.t("home.main.subtitle"),
+                icon: "flag.fill",
+                tint: palette.accent,
+                quests: store.guildMainQuests,
+                emptyTitle: L10n.t("home.main.empty.title"),
+                emptyMessage: L10n.t("home.main.empty.message"),
+                emptyAction: L10n.t("home.main.empty.action"),
+                emptyKind: .main
+            )
+
+            Divider().opacity(0.35)
+
+            guildLane(
+                title: L10n.t("home.side.title"),
+                subtitle: L10n.t("home.side.subtitle"),
+                icon: "bolt.fill",
+                tint: .orange,
+                quests: store.guildSideQuests,
+                emptyTitle: L10n.t("home.side.empty.title"),
+                emptyMessage: L10n.t("home.side.empty.message"),
+                emptyAction: L10n.t("home.side.empty.action"),
+                emptyKind: .side
+            )
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [goldTint.opacity(0.55), palette.accent.opacity(0.35)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.4
+                        )
+                )
+        )
+    }
+
+    private var guildHeader: some View {
+        let board = store.guildMainQuests + store.guildSideQuests
+        let done = board.filter(\.isCompleted).count
+
+        return HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(goldTint.opacity(0.18))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "shield.lefthalf.filled")
+                    .font(.title3)
+                    .foregroundStyle(goldTint)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.t("home.guild"))
+                    .font(.headline)
+                Text(L10n.t("home.board_today"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 6) {
+                Button {
+                    publishLaunch = QuestPublishLaunch()
+                } label: {
+                    Label(L10n.t("home.publish"), systemImage: "plus")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule().fill(palette.accent.opacity(0.16))
+                        )
+                }
+                .buttonStyle(.plain)
+
+                if !board.isEmpty {
+                    Text(L10n.format("home.progress", done, board.count))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private func guildLane(
+        title: String,
+        subtitle: String,
+        icon: String,
+        tint: Color,
+        quests: [Quest],
+        emptyTitle: String,
+        emptyMessage: String,
+        emptyAction: String,
+        emptyKind: QuestPublishWizardView.BoardKind
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .foregroundStyle(tint)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+
+            if quests.isEmpty {
+                VStack(spacing: 8) {
+                    Text(emptyTitle)
+                        .font(.subheadline.weight(.medium))
+                    Text(emptyMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button(emptyAction) {
+                        publishLaunch = QuestPublishLaunch(boardKind: emptyKind)
+                    }
+                    .font(.caption.weight(.semibold))
+                    .padding(.top, 2)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(tint.opacity(0.07))
+                )
+            } else {
+                ForEach(quests) { quest in
+                    NavigationLink {
+                        QuestDetailView(quest: quest)
+                    } label: {
+                        HStack(spacing: 0) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(tint)
+                                .frame(width: 3)
+                                .padding(.vertical, 6)
+                            QuestRowView(quest: quest)
+                                .padding(.leading, 10)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: - 其他分区
+
+    private func luckyDayBanner(_ fortune: FortuneTier) -> some View {
+        let tint = Color(hex: HiddenStatID.lucky.colorHex)
+        return HStack(spacing: 12) {
+            Image(systemName: "leaf.fill")
+                .font(.title3)
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.format("home.lucky", fortune.localizedName))
+                    .font(.headline)
+                Text(
+                    fortune.bonusGold > 0
+                        ? L10n.format("home.lucky.bonus_gold", fortune.bonusPercentText, fortune.bonusGold)
+                        : L10n.format("home.lucky.bonus", fortune.bonusPercentText)
+                )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(tint.opacity(0.14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(tint.opacity(0.4), lineWidth: 1)
+                )
+        )
+    }
 
     private var overdueSection: some View {
         Card {
             VStack(alignment: .leading, spacing: 10) {
-                SectionHeader("延期任务", subtitle: "完成会有 -30% 惩罚，尽快处理或改期")
+                SectionHeader(L10n.t("home.overdue.title"), subtitle: L10n.t("home.overdue.subtitle"))
                 ForEach(store.overdueQuests.prefix(5)) { quest in
                     QuestRowView(quest: quest)
                         .contextMenu {
-                            Button("挪到今天") {
+                            Button(L10n.t("quest.move_today")) {
                                 store.reschedule(quest, to: store.today)
                             }
-                            Button("删除", role: .destructive) {
+                            Button(L10n.t("common.delete"), role: .destructive) {
                                 store.deleteQuest(quest)
                             }
                         }
@@ -73,92 +277,16 @@ struct HomeView: View {
         }
     }
 
-    private var mainQuestSection: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionHeader(
-                    "今日主线",
-                    subtitle: "昨天规划的任务，奖励加成 +20%",
-                    actionTitle: "规划",
-                    action: { isPresentingPlanning = true }
-                )
-
-                if store.mainQuests.isEmpty {
-                    EmptyStateView(
-                        icon: "flag.slash",
-                        title: "今天还没有主线",
-                        message: "主线来自前一天的规划。现在去安排明天，明天的你会感谢今天的你。",
-                        actionTitle: "规划明天",
-                        action: { isPresentingPlanning = true }
-                    )
-                } else {
-                    ForEach(store.mainQuests) { quest in
-                        NavigationLink {
-                            QuestDetailView(quest: quest)
-                        } label: {
-                            QuestRowView(quest: quest)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    private var sideQuestSection: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionHeader("今日支线", subtitle: "临时冒出来的事，奖励 -50%")
-
-                ForEach(store.sideQuests) { quest in
-                    NavigationLink {
-                        QuestDetailView(quest: quest)
-                    } label: {
-                        QuestRowView(quest: quest)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                HStack(spacing: 8) {
-                    TextField("快速添加支线…", text: $quickAddText)
-                        .textFieldStyle(.plain)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.primary.opacity(0.06))
-                        )
-                        .onSubmit(quickAdd)
-
-                    Button(action: quickAdd) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(palette.accent)
-                    }
-                    .disabled(quickAddText.trimmingCharacters(in: .whitespaces).isEmpty)
-
-                    Button {
-                        isPresentingEditor = true
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-    }
-
     private var habitSection: some View {
         Card {
             VStack(alignment: .leading, spacing: 10) {
-                SectionHeader("今日习惯", subtitle: "点一下就完成")
+                SectionHeader(L10n.t("home.habits.title"), subtitle: L10n.t("home.habits.subtitle"))
 
                 if store.habits.isEmpty {
                     EmptyStateView(
                         icon: "repeat.circle",
-                        title: "还没有习惯",
-                        message: "习惯是最稳定的经验来源，去成长页添加一个。"
+                        title: L10n.t("home.habits.empty.title"),
+                        message: L10n.t("home.habits.empty.message")
                     )
                 } else {
                     ForEach(store.habits) { habit in
@@ -172,26 +300,26 @@ struct HomeView: View {
     private var todayStatsSection: some View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
-                SectionHeader("今日统计")
+                SectionHeader(L10n.t("home.report"))
 
                 HStack(spacing: 12) {
                     statTile(
-                        title: "完成率",
+                        title: L10n.t("home.completion"),
                         value: "\(Int(store.todayCompletionRate * 100))%",
                         icon: "chart.pie.fill",
                         tint: palette.accent
                     )
                     statTile(
-                        title: "今日EXP",
+                        title: L10n.t("home.today_exp"),
                         value: "+\(store.todayEXP)",
                         icon: "sparkles",
                         tint: palette.secondary
                     )
                     statTile(
-                        title: "今日Gold",
+                        title: L10n.t("home.today_gold"),
                         value: "+\(store.todayGold)",
                         icon: "dollarsign.circle.fill",
-                        tint: Color(hex: "#D4A017")
+                        tint: goldTint
                     )
                 }
 
@@ -217,12 +345,5 @@ struct HomeView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(tint.opacity(0.10))
         )
-    }
-
-    private func quickAdd() {
-        let title = quickAddText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
-        store.createQuest(title: title, scheduledDay: store.today)
-        quickAddText = ""
     }
 }

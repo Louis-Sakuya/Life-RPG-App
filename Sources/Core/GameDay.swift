@@ -35,7 +35,7 @@ struct GameDay: Hashable, Comparable, Codable, Sendable, CustomStringConvertible
 
     /// 用于列表分组标题等场景的短标签
     var shortLabel: String {
-        String(format: "%d月%d日", month, day)
+        L10n.format("date.md", month, day)
     }
 
     static let distantPast = GameDay(value: 0)

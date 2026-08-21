@@ -4,16 +4,6 @@ import SwiftData
 enum StatsRange: String, CaseIterable, Identifiable, Sendable {
     case day, week, month, year, all
     var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .day: return "日"
-        case .week: return "周"
-        case .month: return "月"
-        case .year: return "年"
-        case .all: return "全部"
-        }
-    }
 }
 
 struct StatsPoint: Identifiable, Sendable {

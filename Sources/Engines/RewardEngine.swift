@@ -16,6 +16,13 @@ struct RewardContext: Sendable {
     /// 全局连续天数（登录连续），决定 streakMultiplier
     var globalStreakDays: Int
     var skillShares: [SkillShare]
+    var fortune: FortuneTier?
+    /// 关联技能当前等级，用于提高任务经验与金币
+    var skillLevels: [UUID: Int]
+    /// 关联技能的属性亲和，用于属性加速技能经验
+    var skillAffinities: [UUID: [StatAffinity]]
+    /// 玩家五个核心属性的有效等级（训练等级 + 加点）
+    var statLevels: [CoreStatID: Int]
 
     init(
         difficulty: QuestDifficulty = .normal,
@@ -28,7 +35,11 @@ struct RewardContext: Sendable {
         completedAt: Date = Date(),
         consecutiveStreak: Int = 0,
         globalStreakDays: Int = 0,
-        skillShares: [SkillShare] = []
+        skillShares: [SkillShare] = [],
+        fortune: FortuneTier? = nil,
+        skillLevels: [UUID: Int] = [:],
+        skillAffinities: [UUID: [StatAffinity]] = [:],
+        statLevels: [CoreStatID: Int] = [:]
     ) {
         self.difficulty = difficulty
         self.priority = priority
@@ -41,6 +52,10 @@ struct RewardContext: Sendable {
         self.consecutiveStreak = consecutiveStreak
         self.globalStreakDays = globalStreakDays
         self.skillShares = skillShares
+        self.fortune = fortune
+        self.skillLevels = skillLevels
+        self.skillAffinities = skillAffinities
+        self.statLevels = statLevels
     }
 }
 
@@ -65,20 +80,30 @@ struct RewardResult: Sendable {
     var multiplier: Double
     /// 连续天数带来的独立乘数，不参与夹逼
     var streakMultiplier: Double
+    var fortuneMultiplier: Double
+    var fortuneLabel: String?
+    /// 关联技能等级对整笔任务奖励的乘数
+    var skillLevelMultiplier: Double
     var exp: Int
     var gold: Int
     var skillEXP: [UUID: Int]
 
     var breakdownText: String {
-        var parts = [String(format: "基础 %.0f", baseEXP)]
+        var parts = [L10n.format("reward.base", baseEXP)]
         if durationFactor != 1.0 {
-            parts.append(String(format: "时长 ×%.2f", durationFactor))
+            parts.append(L10n.format("reward.duration", durationFactor))
         }
         for modifier in appliedModifiers {
-            parts.append("\(modifier.label) \(modifier.signedPercentText)")
+            parts.append("\(modifier.localizedLabel) \(modifier.signedPercentText)")
         }
         if streakMultiplier != 1.0 {
-            parts.append(String(format: "连续 ×%.2f", streakMultiplier))
+            parts.append(L10n.format("reward.streak", streakMultiplier))
+        }
+        if fortuneMultiplier != 1.0, let fortuneLabel {
+            parts.append("\(fortuneLabel) ×\(String(format: "%.2f", fortuneMultiplier))")
+        }
+        if skillLevelMultiplier != 1.0 {
+            parts.append(L10n.format("reward.skill_level", skillLevelMultiplier))
         }
         parts.append("→ \(exp) EXP / \(gold) G")
         return parts.joined(separator: "  ")
@@ -114,13 +139,28 @@ struct RewardEngine: Sendable {
         let rawMultiplier = 1.0 + applied.reduce(0.0) { $0 + $1.value }
         let multiplier = min(balance.multiplierClamp.max, max(balance.multiplierClamp.min, rawMultiplier))
         let streakMultiplier = StreakEngine.multiplier(forDays: context.globalStreakDays, tiers: balance.streakTiers)
+        let fortuneXP = context.fortune?.xpMultiplier ?? 1
+        let fortuneGold = context.fortune?.goldMultiplier ?? 1
+        let fortuneLabel = context.fortune.map(\.localizedName)
+        let skillLevelMultiplier = ProgressionEngine.questRewardMultiplier(
+            shares: context.skillShares,
+            levels: context.skillLevels,
+            perLevel: balance.skillQuestBonusPerLevel,
+            cap: balance.skillQuestBonusMax
+        )
 
-        let exp = Int((baseEXP * multiplier * streakMultiplier).rounded())
-        let gold = Int((baseGold * multiplier * streakMultiplier).rounded())
+        let exp = Int((baseEXP * multiplier * streakMultiplier * fortuneXP * skillLevelMultiplier).rounded()) + (context.fortune?.bonusEXP ?? 0)
+        let gold = Int((baseGold * multiplier * streakMultiplier * fortuneGold * skillLevelMultiplier).rounded()) + (context.fortune?.bonusGold ?? 0)
 
         var skillEXP: [UUID: Int] = [:]
         for share in context.skillShares where share.expShare > 0 {
-            let value = Int((Double(exp) * share.expShare).rounded())
+            let growth = ProgressionEngine.skillXPMultiplier(
+                affinities: context.skillAffinities[share.skillID] ?? [],
+                statLevels: context.statLevels,
+                perLevel: balance.statSkillXPBonusPerLevel,
+                cap: balance.statSkillXPBonusMax
+            )
+            let value = Int((Double(exp) * share.expShare * growth).rounded())
             guard value > 0 else { continue }
             skillEXP[share.skillID, default: 0] += value
         }
@@ -132,6 +172,9 @@ struct RewardEngine: Sendable {
             appliedModifiers: applied,
             multiplier: multiplier,
             streakMultiplier: streakMultiplier,
+            fortuneMultiplier: fortuneXP,
+            fortuneLabel: fortuneLabel,
+            skillLevelMultiplier: skillLevelMultiplier,
             exp: max(0, exp),
             gold: max(0, gold),
             skillEXP: skillEXP
@@ -147,7 +190,13 @@ struct RewardEngine: Sendable {
 
     /// 习惯不参与难度 / 时长 / 准时度体系，只吃连续加成。
     /// 交互成本低就应该收益低，否则玩家会用打卡刷掉任务系统的意义。
-    func evaluateHabit(streakDays: Int, globalStreakDays: Int, skillShares: [SkillShare]) -> RewardResult {
+    func evaluateHabit(
+        streakDays: Int,
+        globalStreakDays: Int,
+        skillShares: [SkillShare],
+        skillAffinities: [UUID: [StatAffinity]] = [:],
+        statLevels: [CoreStatID: Int] = [:]
+    ) -> RewardResult {
         let streakMultiplier = StreakEngine.multiplier(
             forDays: max(streakDays, globalStreakDays),
             tiers: balance.streakTiers
@@ -157,7 +206,13 @@ struct RewardEngine: Sendable {
 
         var skillEXP: [UUID: Int] = [:]
         for share in skillShares where share.expShare > 0 {
-            let value = Int((Double(exp) * share.expShare).rounded())
+            let growth = ProgressionEngine.skillXPMultiplier(
+                affinities: skillAffinities[share.skillID] ?? [],
+                statLevels: statLevels,
+                perLevel: balance.statSkillXPBonusPerLevel,
+                cap: balance.statSkillXPBonusMax
+            )
+            let value = Int((Double(exp) * share.expShare * growth).rounded())
             guard value > 0 else { continue }
             skillEXP[share.skillID, default: 0] += value
         }
@@ -169,6 +224,9 @@ struct RewardEngine: Sendable {
             appliedModifiers: [],
             multiplier: 1.0,
             streakMultiplier: streakMultiplier,
+            fortuneMultiplier: 1,
+            fortuneLabel: nil,
+            skillLevelMultiplier: 1,
             exp: exp,
             gold: gold,
             skillEXP: skillEXP

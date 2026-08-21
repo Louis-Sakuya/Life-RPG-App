@@ -15,18 +15,20 @@ struct ChallengeEditorView: View {
         var id: String { key }
     }
 
-    private static let options: [MetricOption] = [
-        MetricOption(key: MetricKey.totalQuestsCompleted, title: "累计完成任务", unit: "个"),
-        MetricOption(key: MetricKey.totalMainQuestsCompleted, title: "累计完成主线", unit: "个"),
-        MetricOption(key: MetricKey.totalHabitCheckIns, title: "累计打卡", unit: "次"),
-        MetricOption(key: MetricKey.bestLoginStreak, title: "最长连续登录", unit: "天"),
-        MetricOption(key: MetricKey.playerLevel, title: "玩家等级", unit: "级"),
-        MetricOption(key: MetricKey.totalStudyMinutes, title: "累计学习时长", unit: "分钟"),
-        MetricOption(key: MetricKey.totalFocusMinutes, title: "累计专注时长", unit: "分钟"),
-        MetricOption(key: MetricKey.perfectDays, title: "完美达成天数", unit: "天"),
-        MetricOption(key: MetricKey.skillLevel, title: "指定技能等级", unit: "级", needsSkill: true),
-        MetricOption(key: MetricKey.habitStreak, title: "指定习惯连续", unit: "天", needsHabit: true)
-    ]
+    private var options: [MetricOption] {
+        [
+            MetricOption(key: MetricKey.totalQuestsCompleted, title: L10n.t("metric.totalQuestsCompleted"), unit: L10n.t("unit.count")),
+            MetricOption(key: MetricKey.totalMainQuestsCompleted, title: L10n.t("metric.totalMainQuestsCompleted"), unit: L10n.t("unit.count")),
+            MetricOption(key: MetricKey.totalHabitCheckIns, title: L10n.t("metric.totalHabitCheckIns"), unit: L10n.t("unit.times")),
+            MetricOption(key: MetricKey.bestLoginStreak, title: L10n.t("metric.bestLoginStreak"), unit: L10n.t("unit.days")),
+            MetricOption(key: MetricKey.playerLevel, title: L10n.t("metric.playerLevel"), unit: L10n.t("unit.levels")),
+            MetricOption(key: MetricKey.totalStudyMinutes, title: L10n.t("metric.totalStudyMinutes"), unit: L10n.t("unit.minutes")),
+            MetricOption(key: MetricKey.totalFocusMinutes, title: L10n.t("metric.totalFocusMinutes"), unit: L10n.t("unit.minutes")),
+            MetricOption(key: MetricKey.perfectDays, title: L10n.t("metric.perfectDays"), unit: L10n.t("unit.days")),
+            MetricOption(key: MetricKey.skillLevel, title: L10n.t("metric.skillLevel"), unit: L10n.t("unit.levels"), needsSkill: true),
+            MetricOption(key: MetricKey.habitStreak, title: L10n.t("metric.habitStreak"), unit: L10n.t("unit.days"), needsHabit: true)
+        ]
+    }
 
     @State private var title = ""
     @State private var detail = ""
@@ -39,44 +41,44 @@ struct ChallengeEditorView: View {
     @State private var rewardGold = 800
 
     private var option: MetricOption {
-        Self.options.first { $0.key == metricKey } ?? Self.options[0]
+        options.first { $0.key == metricKey } ?? options[0]
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("基本") {
-                    TextField("挑战名称", text: $title)
-                    TextField("描述（可选）", text: $detail, axis: .vertical)
+                Section(L10n.t("common.basic")) {
+                    TextField(L10n.t("challenge.name"), text: $title)
+                    TextField(L10n.t("quest.detail_placeholder"), text: $detail, axis: .vertical)
                         .lineLimit(1...3)
                 }
 
-                Section("图标") {
+                Section(L10n.t("common.icon")) {
                     IconPicker(selection: $iconName, tint: .accentColor)
                 }
 
                 Section {
-                    Picker("追踪什么", selection: $metricKey) {
-                        ForEach(Self.options) { Text($0.title).tag($0.key) }
+                    Picker(L10n.t("challenge.track"), selection: $metricKey) {
+                        ForEach(options) { Text($0.title).tag($0.key) }
                     }
 
                     if option.needsSkill {
-                        Picker("技能", selection: $skillName) {
-                            Text("任意技能").tag("")
-                            ForEach(store.skills) { Text($0.name).tag($0.name) }
+                        Picker(L10n.t("common.skills"), selection: $skillName) {
+                            Text(L10n.t("challenge.any_skill")).tag("")
+                            ForEach(store.skills) { Text($0.localizedName).tag($0.name) }
                         }
                     }
                     if option.needsHabit {
-                        Picker("习惯", selection: $habitName) {
-                            Text("任意习惯").tag("")
+                        Picker(L10n.t("common.habits"), selection: $habitName) {
+                            Text(L10n.t("challenge.any_habit")).tag("")
                             ForEach(store.habits) { Text($0.name).tag($0.name) }
                         }
                     }
 
                     HStack {
-                        Text("目标值")
+                        Text(L10n.t("challenge.target"))
                         Spacer()
-                        TextField("目标", value: $threshold, format: .number)
+                        TextField(L10n.t("challenge.target_placeholder"), value: $threshold, format: .number)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 90)
@@ -84,24 +86,24 @@ struct ChallengeEditorView: View {
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("达成条件")
+                    Text(L10n.t("challenge.condition"))
                 } footer: {
-                    Text("挑战会持续对照你的真实数据自动判定，达成时自动结算奖励。")
+                    Text(L10n.t("challenge.condition_footer"))
                 }
 
-                Section("奖励") {
+                Section(L10n.t("common.reward")) {
                     Stepper("EXP \(rewardEXP)", value: $rewardEXP, in: 0...20000, step: 100)
                     Stepper("Gold \(rewardGold)", value: $rewardGold, in: 0...20000, step: 100)
                 }
             }
-            .navigationTitle("自定义挑战")
+            .navigationTitle(L10n.t("challenge.custom"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button(L10n.t("common.cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("保存", action: save)
+                    Button(L10n.t("common.save"), action: save)
                         .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || threshold <= 0)
                 }
             }

@@ -46,14 +46,6 @@ enum UnlockKind: String, Codable, CaseIterable, Sendable {
     case achievement
     case title
     case challenge
-
-    var displayName: String {
-        switch self {
-        case .achievement: return "成就"
-        case .title: return "称号"
-        case .challenge: return "挑战"
-        }
-    }
 }
 
 struct UnlockCondition: Codable, Hashable, Sendable {

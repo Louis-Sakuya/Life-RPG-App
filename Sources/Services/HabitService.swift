@@ -42,10 +42,18 @@ final class HabitService {
         var result: RewardResult?
         if log.count >= habit.dailyTarget {
             habit.streak = StreakEngine.advance(habit.streak, on: targetDay, calendar: calendar)
+            let profile = RewardGrowthProfile.make(
+                shares: habit.skillShares,
+                player: player,
+                context: context,
+                config: config
+            )
             let reward = engine.evaluateHabit(
                 streakDays: habit.streakCurrent,
                 globalStreakDays: player.loginStreakCurrent,
-                skillShares: habit.skillShares
+                skillShares: habit.skillShares,
+                skillAffinities: profile.skillAffinities,
+                statLevels: profile.statLevels
             )
             rewards.grant(
                 reward,

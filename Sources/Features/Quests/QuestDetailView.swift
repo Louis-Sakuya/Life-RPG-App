@@ -29,30 +29,30 @@ struct QuestDetailView: View {
                 .padding(.vertical, 4)
             }
 
-            Section("排期") {
-                LabeledContent("计划执行", value: quest.scheduledDay.description)
-                LabeledContent("创建于", value: quest.createdDay.description)
+            Section(L10n.t("common.schedule")) {
+                LabeledContent(L10n.t("quest.scheduled"), value: quest.scheduledDay.description)
+                LabeledContent(L10n.t("quest.created_on"), value: quest.createdDay.description)
                 if let dueAt = quest.dueAt {
-                    LabeledContent("截止时间", value: dueAt.formatted(date: .abbreviated, time: .shortened))
+                    LabeledContent(L10n.t("quest.due_at"), value: dueAt.formatted(date: .abbreviated, time: .shortened))
                 }
                 if let completedAt = quest.completedAt {
-                    LabeledContent("完成于", value: completedAt.formatted(date: .abbreviated, time: .shortened))
+                    LabeledContent(L10n.t("quest.completed_at"), value: completedAt.formatted(date: .abbreviated, time: .shortened))
                 }
-                LabeledContent("预计时长", value: "\(quest.estimatedMinutes) 分钟")
+                LabeledContent(L10n.t("quest.estimated"), value: L10n.format("quest.minutes", quest.estimatedMinutes))
             }
 
             if !quest.tags.isEmpty {
-                Section("标签") {
+                Section(L10n.t("common.tags")) {
                     HStack {
                         ForEach(quest.tags, id: \.self) { TagChip(text: $0) }
                     }
                 }
             }
 
-            Section("技能") {
+            Section(L10n.t("common.skills")) {
                 let links = quest.skillLinks ?? []
                 if links.isEmpty {
-                    Text("未关联技能")
+                    Text(L10n.t("quest.no_skills"))
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(links) { link in
@@ -60,9 +60,9 @@ struct QuestDetailView: View {
                             HStack {
                                 Image(systemName: skill.iconName)
                                     .foregroundStyle(Color(hex: skill.colorHex))
-                                Text(skill.name)
+                                Text(skill.localizedName)
                                 Spacer()
-                                Text("\(Int(link.expShare * 100))% 经验")
+                                Text(L10n.format("quest.exp_share", Int(link.expShare * 100)))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -71,38 +71,41 @@ struct QuestDetailView: View {
                 }
             }
 
-            Section("奖励明细") {
+            Section(L10n.t("quest.reward_detail")) {
                 let reward = store.previewReward(for: quest)
-                LabeledContent("基础经验", value: String(format: "%.0f", reward.baseEXP))
+                LabeledContent(L10n.t("quest.base_exp"), value: String(format: "%.0f", reward.baseEXP))
                 ForEach(reward.appliedModifiers) { modifier in
-                    LabeledContent(modifier.label, value: modifier.signedPercentText)
+                    LabeledContent(modifier.localizedLabel, value: modifier.signedPercentText)
                 }
-                LabeledContent("最终乘数", value: String(format: "×%.2f", reward.multiplier))
+                LabeledContent(L10n.t("quest.final_multiplier"), value: String(format: "×%.2f", reward.multiplier))
                 if reward.streakMultiplier > 1 {
-                    LabeledContent("连续加成", value: String(format: "×%.2f", reward.streakMultiplier))
+                    LabeledContent(L10n.t("quest.streak_bonus"), value: String(format: "×%.2f", reward.streakMultiplier))
                 }
-                LabeledContent("合计", value: "\(reward.exp) EXP / \(reward.gold) G")
+                if let fortune = reward.fortuneLabel, reward.fortuneMultiplier > 1 {
+                    LabeledContent(fortune, value: String(format: "×%.2f", reward.fortuneMultiplier))
+                }
+                LabeledContent(L10n.t("quest.total"), value: "\(reward.exp) EXP / \(reward.gold) G")
                     .fontWeight(.semibold)
             }
 
             Section {
-                Button(quest.isCompleted ? "撤销完成" : "标记完成") {
+                Button(quest.isCompleted ? L10n.t("quest.uncomplete") : L10n.t("quest.complete")) {
                     store.toggleQuest(quest)
                 }
-                Button("挪到明天") {
+                Button(L10n.t("quest.move_tomorrow")) {
                     store.reschedule(quest, to: store.container.calendar.adding(days: 1, to: store.today))
                 }
-                Button("删除任务", role: .destructive) {
+                Button(L10n.t("quest.delete"), role: .destructive) {
                     store.deleteQuest(quest)
                     dismiss()
                 }
             }
         }
-        .navigationTitle("任务详情")
+        .navigationTitle(L10n.t("quest.detail.title"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("编辑") { isPresentingEditor = true }
+                Button(L10n.t("common.edit")) { isPresentingEditor = true }
             }
         }
         .sheet(isPresented: $isPresentingEditor) {

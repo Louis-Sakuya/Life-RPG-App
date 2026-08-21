@@ -13,39 +13,61 @@ struct ProfileView: View {
                         .listRowBackground(Color.clear)
                 }
 
-                Section("角色数据") {
-                    LabeledContent("累计天数", value: "\(store.player.totalDaysPlayed)")
-                    LabeledContent("连续登录", value: "\(store.player.loginStreakCurrent) 天（最长 \(store.player.loginStreakBest) 天）")
-                    LabeledContent("完成任务", value: "\(store.player.totalQuestsCompleted)")
-                    LabeledContent("主线 / 支线", value: "\(store.player.totalMainQuestsCompleted) / \(store.player.totalSideQuestsCompleted)")
-                    LabeledContent("习惯打卡", value: "\(store.player.totalHabitCheckIns) 次")
-                    LabeledContent("完美达成", value: "\(store.player.perfectDays) 天")
-                    LabeledContent("累计获得", value: "\(store.player.totalEXPEarned) EXP / \(store.player.totalGoldEarned) G")
+                Section(L10n.t("profile.character")) {
+                    LabeledContent(L10n.t("profile.days_played"), value: "\(store.player.totalDaysPlayed)")
+                    LabeledContent(
+                        L10n.t("profile.login_streak"),
+                        value: L10n.format("profile.login_streak_value", store.player.loginStreakCurrent, store.player.loginStreakBest)
+                    )
+                    LabeledContent(L10n.t("profile.quests_done"), value: "\(store.player.totalQuestsCompleted)")
+                    LabeledContent(
+                        L10n.t("profile.main_side"),
+                        value: "\(store.player.totalMainQuestsCompleted) / \(store.player.totalSideQuestsCompleted)"
+                    )
+                    LabeledContent(
+                        L10n.t("profile.habit_checkins"),
+                        value: L10n.format("profile.habit_checkins_value", store.player.totalHabitCheckIns)
+                    )
+                    LabeledContent(
+                        L10n.t("profile.perfect"),
+                        value: L10n.format("profile.perfect_value", store.player.perfectDays)
+                    )
+                    LabeledContent(
+                        L10n.t("profile.lifetime"),
+                        value: "\(store.player.totalEXPEarned) EXP / \(store.player.totalGoldEarned) G"
+                    )
                 }
 
-                Section("成长记录") {
+                Section(L10n.t("profile.core_stats")) {
+                    ForEach(CoreStatID.allCases) { stat in
+                        LabeledContent(stat.title, value: "Lv\(store.effectiveStatLevel(stat))")
+                    }
+                    LabeledContent(HiddenStatID.lucky.title, value: "Lv\(store.luckyProgress().level)")
+                }
+
+                Section(L10n.t("profile.records")) {
                     NavigationLink {
                         AchievementsView(kind: .achievement)
                     } label: {
-                        Label("成就", systemImage: "rosette")
+                        Label(L10n.t("profile.achievements"), systemImage: "rosette")
                             .badge(store.unseenUnlockCount())
                     }
                     NavigationLink {
                         TitlesView()
                     } label: {
-                        Label("称号", systemImage: "crown.fill")
+                        Label(L10n.t("profile.titles"), systemImage: "crown.fill")
                     }
                     NavigationLink {
                         ChallengeListView()
-                            .navigationTitle("挑战")
+                            .navigationTitle(L10n.t("profile.challenges"))
                             .navigationBarTitleDisplayMode(.inline)
                     } label: {
-                        Label("挑战", systemImage: "trophy.fill")
+                        Label(L10n.t("profile.challenges"), systemImage: "trophy.fill")
                     }
                     NavigationLink {
                         LedgerView()
                     } label: {
-                        Label("奖励流水", systemImage: "list.bullet.rectangle.portrait")
+                        Label(L10n.t("profile.ledger"), systemImage: "list.bullet.rectangle.portrait")
                     }
                 }
 
@@ -53,17 +75,17 @@ struct ProfileView: View {
                     NavigationLink {
                         ShopView()
                     } label: {
-                        Label("商店", systemImage: "bag.fill")
-                            .badge("\(store.player.gold) G")
+                        Label(L10n.t("profile.shop"), systemImage: "bag.fill")
+                            .badge(store.isTestShopSandboxEnabled ? L10n.t("gold.infinite") : "\(store.player.gold) G")
                     }
                     NavigationLink {
                         SettingsView()
                     } label: {
-                        Label("设置", systemImage: "gearshape.fill")
+                        Label(L10n.t("profile.settings"), systemImage: "gearshape.fill")
                     }
                 }
             }
-            .navigationTitle("我的")
+            .navigationTitle(L10n.t("profile.title"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }

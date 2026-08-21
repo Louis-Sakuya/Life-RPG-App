@@ -35,9 +35,36 @@ struct GameCalendar: Sendable {
         calendar.date(byAdding: .day, value: 1, to: startDate(of: day)) ?? Date()
     }
 
-    /// 日历意义上的当天午夜，用于展示与日期选择器
+    /// 日历意义上的当天午夜，用于展示与日期选择器。
+    /// 与 `gameDay(fromDisplayDate:)` 成对：选「21 号」必须还原成 21 号，不能再走日界线。
     func displayDate(of day: GameDay) -> Date {
         calendar.date(from: day.dateComponents) ?? Date()
+    }
+
+    /// 把日期选择器的日历日还原成 `GameDay`。
+    ///
+    /// `DatePicker(.date)` 给出的是当天午夜。若误用 `gameDay(for:)`，会按 `dayStartHour`
+    /// 把 21 号 00:00 算成 20 号，紧急任务会被当成「当天临时」吃 -50%。
+    func gameDay(fromDisplayDate date: Date) -> GameDay {
+        let comps = calendar.dateComponents([.year, .month, .day], from: date)
+        return GameDay(year: comps.year ?? 1970, month: comps.month ?? 1, day: comps.day ?? 1)
+    }
+
+    /// 把某个钟点落到指定游戏日的墙上时间，用于"当天 21:00 截止"。
+    func date(on day: GameDay, hour: Int, minute: Int, second: Int = 0) -> Date {
+        var comps = day.dateComponents
+        comps.hour = hour
+        comps.minute = minute
+        comps.second = second
+        return calendar.date(from: comps) ?? displayDate(of: day)
+    }
+
+    func date(on day: GameDay, matchingTimeOf timeSource: Date) -> Date {
+        date(
+            on: day,
+            hour: calendar.component(.hour, from: timeSource),
+            minute: calendar.component(.minute, from: timeSource)
+        )
     }
 
     // MARK: - 日期运算

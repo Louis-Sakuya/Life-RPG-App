@@ -7,31 +7,45 @@ struct SettingsView: View {
     @State private var exportedFile: URL?
     @State private var isImporting = false
     @State private var message: String?
+    @State private var confirmReset = false
 
     var body: some View {
         let settings = store.settings
 
         Form {
-            Section("外观") {
-                Picker("主题模式", selection: Binding(
+            Section {
+                Picker(L10n.t("settings.language"), selection: Binding(
+                    get: { settings.language },
+                    set: { store.updateLanguage($0) }
+                )) {
+                    ForEach(AppLanguage.allCases) { Text($0.displayName).tag($0) }
+                }
+            } header: {
+                Text(L10n.t("settings.language"))
+            } footer: {
+                Text(L10n.t("settings.language_footer"))
+            }
+
+            Section(L10n.t("settings.appearance")) {
+                Picker(L10n.t("settings.theme_mode"), selection: Binding(
                     get: { settings.appearance },
                     set: { settings.appearance = $0; store.save() }
                 )) {
                     ForEach(AppearanceMode.allCases, id: \.self) { Text($0.displayName).tag($0) }
                 }
-                Toggle("RPG 风格界面", isOn: Binding(
+                Toggle(L10n.t("settings.rpg_ui"), isOn: Binding(
                     get: { settings.useRPGTheme },
                     set: { settings.useRPGTheme = $0; store.save() }
                 ))
                 NavigationLink {
                     ShopView()
                 } label: {
-                    LabeledContent("配色主题", value: currentThemeName)
+                    LabeledContent(L10n.t("settings.color_theme"), value: currentThemeName)
                 }
             }
 
             Section {
-                Picker("一天从几点开始", selection: Binding(
+                Picker(L10n.t("settings.day_start"), selection: Binding(
                     get: { settings.dayStartHour },
                     set: { store.updateDayStartHour($0) }
                 )) {
@@ -39,28 +53,28 @@ struct SettingsView: View {
                         Text(String(format: "%02d:00", hour)).tag(hour)
                     }
                 }
-                Toggle("未完成的任务自动顺延", isOn: Binding(
+                Toggle(L10n.t("settings.carry_over"), isOn: Binding(
                     get: { settings.carryOverUnfinished },
                     set: { settings.carryOverUnfinished = $0; store.save() }
                 ))
             } header: {
-                Text("时间")
+                Text(L10n.t("settings.time"))
             } footer: {
-                Text("设为凌晨 4 点时，凌晨 1 点完成的任务仍然算作前一天。这个值会直接改变连续天数的统计口径，中途修改可能让某些连续记录看起来发生跳变。")
+                Text(L10n.t("settings.time_footer"))
             }
 
-            Section("通知") {
-                Toggle("启用本地通知", isOn: Binding(
+            Section(L10n.t("settings.notifications")) {
+                Toggle(L10n.t("settings.enable_notifications"), isOn: Binding(
                     get: { settings.notificationsEnabled },
                     set: { settings.notificationsEnabled = $0; store.save(); store.syncNotifications() }
                 ))
-                Toggle("明日规划提醒", isOn: Binding(
+                Toggle(L10n.t("settings.planning_reminder"), isOn: Binding(
                     get: { settings.planningReminderEnabled },
                     set: { settings.planningReminderEnabled = $0; store.save(); store.syncNotifications() }
                 ))
                 if settings.planningReminderEnabled {
                     DatePicker(
-                        "提醒时间",
+                        L10n.t("settings.reminder_time"),
                         selection: Binding(
                             get: { time(hour: settings.planningReminderHour, minute: settings.planningReminderMinute) },
                             set: { newValue in
@@ -74,13 +88,13 @@ struct SettingsView: View {
                         displayedComponents: .hourAndMinute
                     )
                 }
-                Toggle("睡觉提醒", isOn: Binding(
+                Toggle(L10n.t("settings.bedtime"), isOn: Binding(
                     get: { settings.bedtimeReminderEnabled },
                     set: { settings.bedtimeReminderEnabled = $0; store.save(); store.syncNotifications() }
                 ))
                 if settings.bedtimeReminderEnabled {
                     DatePicker(
-                        "睡觉时间",
+                        L10n.t("settings.bedtime_time"),
                         selection: Binding(
                             get: { time(hour: settings.bedtimeReminderHour, minute: settings.bedtimeReminderMinute) },
                             set: { newValue in
@@ -94,7 +108,7 @@ struct SettingsView: View {
                         displayedComponents: .hourAndMinute
                     )
                 }
-                Button("请求通知权限") {
+                Button(L10n.t("settings.request_permission")) {
                     Task {
                         await store.container.notifications.requestAuthorization()
                         store.syncNotifications()
@@ -103,22 +117,43 @@ struct SettingsView: View {
             }
 
             Section {
-                Button("导出完整备份（JSON）") { export { try store.container.export.makeBackup() } }
-                Button("导出任务（CSV）") { export { try store.container.export.exportQuestsCSV() } }
-                Button("导出每日统计（CSV）") { export { try store.container.export.exportDailyRecordsCSV() } }
-                Button("导出成长报告（PDF）") {
+                Button(L10n.t("settings.export_backup")) { export { try store.container.export.makeBackup() } }
+                Button(L10n.t("settings.export_quests")) { export { try store.container.export.exportQuestsCSV() } }
+                Button(L10n.t("settings.export_daily")) { export { try store.container.export.exportDailyRecordsCSV() } }
+                Button(L10n.t("settings.export_pdf")) {
                     export { try store.container.export.exportSummaryPDF(player: store.player) }
                 }
-                Button("从备份恢复") { isImporting = true }
+                Button(L10n.t("settings.restore")) { isImporting = true }
                     .foregroundStyle(.orange)
             } header: {
-                Text("数据")
+                Text(L10n.t("settings.data"))
             } footer: {
-                Text("恢复会先清空当前全部数据再写入备份内容，操作不可撤销。建议先导出一份当前备份。")
+                Text(L10n.t("settings.data_footer"))
+            }
+
+            Section {
+                Toggle(L10n.t("settings.shop_sandbox"), isOn: Binding(
+                    get: { store.isTestShopSandboxEnabled },
+                    set: { store.setTestShopSandbox($0) }
+                ))
+            } header: {
+                Text(L10n.t("settings.testing"))
+            } footer: {
+                Text(L10n.t("settings.shop_sandbox_footer"))
+            }
+
+            Section {
+                Button(L10n.t("settings.reset"), role: .destructive) {
+                    confirmReset = true
+                }
+            } header: {
+                Text(L10n.t("settings.account"))
+            } footer: {
+                Text(L10n.t("settings.reset_footer"))
             }
 
             if !store.container.config.loadIssues.isEmpty {
-                Section("配置诊断") {
+                Section(L10n.t("settings.diagnostics")) {
                     ForEach(store.container.config.loadIssues, id: \.self) { issue in
                         Text(issue)
                             .font(.caption)
@@ -127,13 +162,16 @@ struct SettingsView: View {
                 }
             }
 
-            Section("关于") {
-                LabeledContent("平衡表版本", value: "\(store.container.config.balance.version)")
-                LabeledContent("规则数量", value: "\(store.container.config.unlocks.rules.count)")
-                LabeledContent("运行模式", value: store.container.isRunningInMemory ? "内存（数据不会保留）" : "本地持久化")
+            Section(L10n.t("settings.about")) {
+                LabeledContent(L10n.t("settings.balance_version"), value: "\(store.container.config.balance.version)")
+                LabeledContent(L10n.t("settings.rule_count"), value: "\(store.container.config.unlocks.rules.count)")
+                LabeledContent(
+                    L10n.t("settings.runtime"),
+                    value: store.container.isRunningInMemory ? L10n.t("settings.runtime.memory") : L10n.t("settings.runtime.disk")
+                )
             }
         }
-        .navigationTitle("设置")
+        .navigationTitle(L10n.t("settings.title"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: Binding(
             get: { exportedFile.map(ExportedFile.init) },
@@ -149,18 +187,26 @@ struct SettingsView: View {
                 message = error.localizedDescription
             }
         }
-        .alert("提示", isPresented: Binding(
+        .alert(L10n.t("common.notice"), isPresented: Binding(
             get: { message != nil },
             set: { if !$0 { message = nil } }
         )) {
-            Button("好", role: .cancel) { message = nil }
+            Button(L10n.t("common.ok"), role: .cancel) { message = nil }
         } message: {
             Text(message ?? "")
+        }
+        .alert(L10n.t("settings.reset.title"), isPresented: $confirmReset) {
+            Button(L10n.t("common.cancel"), role: .cancel) {}
+            Button(L10n.t("settings.reset.confirm"), role: .destructive) {
+                resetAccount()
+            }
+        } message: {
+            Text(L10n.t("settings.reset.message"))
         }
     }
 
     private var currentThemeName: String {
-        store.container.config.shop.item(id: store.player.currentThemeID)?.name ?? "默认"
+        store.container.config.shop.item(id: store.player.currentThemeID)?.localizedName ?? L10n.t("settings.default_theme")
     }
 
     private func time(hour: Int, minute: Int) -> Date {
@@ -171,7 +217,7 @@ struct SettingsView: View {
         do {
             exportedFile = try make()
         } catch {
-            message = "导出失败：\(error.localizedDescription)"
+            message = L10n.format("settings.export_failed", error.localizedDescription)
         }
     }
 
@@ -180,10 +226,18 @@ struct SettingsView: View {
         defer { if needsScope { url.stopAccessingSecurityScopedResource() } }
         do {
             try store.container.export.restore(from: url)
-            store.refresh()
-            message = "恢复完成"
+            store.reloadAfterRestore()
+            message = L10n.t("settings.restore_ok")
         } catch {
-            message = "恢复失败：\(error.localizedDescription)"
+            message = L10n.format("settings.restore_failed", error.localizedDescription)
+        }
+    }
+
+    private func resetAccount() {
+        do {
+            try store.resetAccount()
+        } catch {
+            message = L10n.format("settings.reset_failed", error.localizedDescription)
         }
     }
 }

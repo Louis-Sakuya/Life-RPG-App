@@ -10,6 +10,7 @@ import SwiftData
 final class AppContainer {
     struct Services {
         let rewards: RewardService
+        let lucky: LuckyService
         let quests: QuestService
         let habits: HabitService
         let dayCycle: DayCycleService
@@ -60,6 +61,7 @@ final class AppContainer {
     // MARK: - 便利访问
 
     var rewards: RewardService { services.rewards }
+    var lucky: LuckyService { services.lucky }
     var quests: QuestService { services.quests }
     var habits: HabitService { services.habits }
     var dayCycle: DayCycleService { services.dayCycle }
@@ -98,10 +100,12 @@ final class AppContainer {
         calendar: GameCalendar
     ) -> Services {
         let rewards = RewardService(context: context, config: config, calendar: calendar)
+        let lucky = LuckyService(config: config, calendar: calendar)
         let metrics = MetricsService(context: context, config: config, calendar: calendar)
         return Services(
             rewards: rewards,
-            quests: QuestService(context: context, config: config, calendar: calendar, rewards: rewards),
+            lucky: lucky,
+            quests: QuestService(context: context, config: config, calendar: calendar, rewards: rewards, lucky: lucky),
             habits: HabitService(context: context, config: config, calendar: calendar, rewards: rewards),
             dayCycle: DayCycleService(context: context, calendar: calendar),
             metrics: metrics,

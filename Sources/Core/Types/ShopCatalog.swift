@@ -8,17 +8,6 @@ enum ShopItemKind: String, Codable, CaseIterable, Sendable {
     case sound
     case pet
 
-    var displayName: String {
-        switch self {
-        case .theme: return "主题"
-        case .avatarFrame: return "头像框"
-        case .background: return "背景"
-        case .effect: return "特效"
-        case .sound: return "音效"
-        case .pet: return "宠物"
-        }
-    }
-
     var iconName: String {
         switch self {
         case .theme: return "paintpalette.fill"

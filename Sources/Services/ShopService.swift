@@ -1,16 +1,16 @@
 import Foundation
 import SwiftData
 
-enum PurchaseError: LocalizedError {
+enum PurchaseError: LocalizedError, Equatable {
     case alreadyOwned
     case levelTooLow(required: Int)
     case notEnoughGold(short: Int)
 
     var errorDescription: String? {
         switch self {
-        case .alreadyOwned: return "已经拥有这件物品"
-        case .levelTooLow(let required): return "需要达到 Lv\(required)"
-        case .notEnoughGold(let short): return "还差 \(short) 金币"
+        case .alreadyOwned: return L10n.t("shop.already_owned")
+        case .levelTooLow(let required): return L10n.format("shop.level_too_low", required)
+        case .notEnoughGold(let short): return L10n.format("shop.not_enough_gold", short)
         }
     }
 }
@@ -44,8 +44,9 @@ final class ShopService {
         item.price == 0 || ownedIDs().contains(item.id)
     }
 
-    func validate(_ item: ShopItem, player: Player) -> PurchaseError? {
+    func validate(_ item: ShopItem, player: Player, sandbox: Bool = false) -> PurchaseError? {
         if isOwned(item) { return .alreadyOwned }
+        if sandbox { return nil }
         let level = config.playerCurve.level(forTotalEXP: player.totalEXP)
         if level < item.requiredLevel { return .levelTooLow(required: item.requiredLevel) }
         if player.gold < item.price { return .notEnoughGold(short: item.price - player.gold) }
@@ -53,9 +54,11 @@ final class ShopService {
     }
 
     @discardableResult
-    func purchase(_ item: ShopItem, player: Player) throws -> OwnedItem {
-        if let error = validate(item, player: player) { throw error }
+    func purchase(_ item: ShopItem, player: Player, sandbox: Bool = false) throws -> OwnedItem {
+        if let error = validate(item, player: player, sandbox: sandbox) { throw error }
         let owned = progression.recordPurchase(item: item)
+        // 沙盒购买不改真实余额，避免测试数据污染流水
+        guard !sandbox else { return owned }
         // 走流水而不是直接扣金币，保证"我的金币去哪了"永远可追溯
         rewards.grantFlat(
             exp: 0,
@@ -63,7 +66,7 @@ final class ShopService {
             to: player,
             source: .purchase,
             sourceRuleID: item.id,
-            title: "购买 \(item.name)",
+            title: L10n.format("shop.buy_title", item.localizedName),
             on: calendar.today
         )
         return owned

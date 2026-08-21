@@ -15,7 +15,7 @@ struct AchievementsView: View {
 
             Section {
                 HStack {
-                    Text("已解锁")
+                    Text(L10n.t("unlock.unlocked"))
                     Spacer()
                     Text("\(unlocked.count) / \(entries.count)")
                         .foregroundStyle(.secondary)
@@ -29,7 +29,7 @@ struct AchievementsView: View {
             }
 
             if !unlocked.isEmpty {
-                Section("已获得") {
+                Section(L10n.t("unlock.obtained")) {
                     ForEach(unlocked, id: \.rule.id) { entry in
                         UnlockRow(rule: entry.rule, progress: 1, text: entry.text, isUnlocked: true)
                     }
@@ -37,7 +37,7 @@ struct AchievementsView: View {
             }
 
             if !locked.isEmpty {
-                Section("未解锁") {
+                Section(L10n.t("unlock.locked")) {
                     ForEach(locked, id: \.rule.id) { entry in
                         UnlockRow(rule: entry.rule, progress: entry.progress, text: entry.text, isUnlocked: false)
                     }
@@ -72,11 +72,11 @@ struct UnlockRow: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(rule.name)
+                Text(rule.localizedName)
                     .font(.body.weight(.medium))
                     .foregroundStyle(isUnlocked ? Color.primary : Color.secondary)
-                if !rule.detail.isEmpty {
-                    Text(rule.detail)
+                if !rule.localizedDetail.isEmpty {
+                    Text(rule.localizedDetail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

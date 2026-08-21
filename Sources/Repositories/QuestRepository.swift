@@ -16,7 +16,16 @@ struct QuestRepository {
             predicate: #Predicate { $0.scheduledDayValue == value && $0.statusRaw != "cancelled" },
             sortBy: [SortDescriptor(\.sortOrder), SortDescriptor(\.createdAt)]
         )
-        return (try? context.fetch(descriptor)) ?? []
+        let fetched = (try? context.fetch(descriptor)) ?? []
+        return fetched.sorted(by: Quest.boardOrder)
+    }
+
+    func questsCompleted(on day: GameDay) -> [Quest] {
+        let value = day.value
+        let descriptor = FetchDescriptor<Quest>(
+            predicate: #Predicate { $0.completedDayValue == value && $0.statusRaw == "completed" }
+        )
+        return ((try? context.fetch(descriptor)) ?? []).sorted(by: Quest.boardOrder)
     }
 
     func quests(in range: ClosedRange<GameDay>) -> [Quest] {
@@ -98,6 +107,16 @@ struct QuestRepository {
 
     func delete(_ quest: Quest) {
         context.delete(quest)
+    }
+
+    func detachSkill(_ skillID: UUID) {
+        let descriptor = FetchDescriptor<QuestSkillLink>(predicate: #Predicate { $0.skillID == skillID })
+        for link in (try? context.fetch(descriptor)) ?? [] {
+            context.delete(link)
+        }
+        for template in allTemplates() {
+            template.skillShares = template.skillShares.filter { $0.skillID != skillID }
+        }
     }
 
     // MARK: - 重复模板

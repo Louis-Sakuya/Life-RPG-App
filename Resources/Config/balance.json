@@ -27,6 +27,11 @@
     "exponent": 1.6,
     "maxLevel": 100
   },
+  "statCurve": {
+    "base": 80,
+    "exponent": 1.55,
+    "maxLevel": 100
+  },
   "streakTiers": [
     { "days": 7, "multiplier": 1.1 },
     { "days": 30, "multiplier": 1.2 },
@@ -39,5 +44,10 @@
   "habitReward": {
     "baseEXP": 12,
     "baseGold": 6
-  }
+  },
+  "initialSkillSlots": 5,
+  "statSkillXPBonusPerLevel": 0.03,
+  "statSkillXPBonusMax": 2.5,
+  "skillQuestBonusPerLevel": 0.02,
+  "skillQuestBonusMax": 2.0
 }

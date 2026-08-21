@@ -30,35 +30,46 @@ struct PlayerHeaderView: View {
                         Text("Lv\(progress.level)")
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(palette.accent)
-                        StatPill(icon: "dollarsign.circle.fill", text: "\(player.gold)", tint: Color(hex: "#D4A017"))
-                        StatPill(icon: "flame.fill", text: "\(player.loginStreakCurrent)", tint: .orange)
+                            .fixedSize()
+                        Text(dateText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
-                }
-
-                Spacer(minLength: 0)
-
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(dateText)
-                        .font(.caption.weight(.medium))
-                    Text("第 \(max(1, player.totalDaysPlayed)) 天")
+                    Text(L10n.format("header.day_n", max(1, player.totalDaysPlayed)))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 8)
+
+                VStack(alignment: .trailing, spacing: 6) {
+                    GoldBadge(amount: player.gold, infinite: store.isTestShopSandboxEnabled)
+                    StatPill(icon: "flame.fill", text: "\(player.loginStreakCurrent)", tint: .orange)
                 }
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 ProgressBar(value: progress.progress, gradient: palette.gradient)
                 HStack {
-                    Text(progress.isMaxLevel ? "已满级" : "\(progress.currentEXP) / \(progress.requiredEXP) EXP")
+                    Text(
+                        progress.isMaxLevel
+                            ? L10n.t("common.max_level")
+                            : L10n.format("exp.progress", progress.currentEXP, progress.requiredEXP)
+                    )
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()
                     if let tier = store.nextStreakTier {
-                        Text("再连续 \(tier.days - store.player.loginStreakCurrent) 天可得 ×\(String(format: "%.1f", tier.multiplier)) 加成")
+                        Text(L10n.format(
+                            "header.streak_next",
+                            tier.days - store.player.loginStreakCurrent,
+                            tier.multiplier
+                        ))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     } else if store.streakMultiplier > 1 {
-                        Text("连续加成 ×\(String(format: "%.1f", store.streakMultiplier))")
+                        Text(L10n.format("header.streak_now", store.streakMultiplier))
                             .font(.caption2)
                             .foregroundStyle(.orange)
                     }
@@ -105,8 +116,8 @@ struct PlayerHeaderView: View {
 
     private var dateText: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "M月d日 EEEE"
-        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.locale = L10n.locale
+        formatter.setLocalizedDateFormatFromTemplate("MMMd EEE")
         return formatter.string(from: store.container.calendar.displayDate(of: store.today))
     }
 }

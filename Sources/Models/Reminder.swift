@@ -9,27 +9,9 @@ enum ReminderKind: String, Codable, CaseIterable, Sendable {
     case streak
     case challenge
 
-    var displayName: String {
-        switch self {
-        case .quest: return "任务提醒"
-        case .habit: return "习惯提醒"
-        case .planning: return "明日规划提醒"
-        case .bedtime: return "睡觉提醒"
-        case .streak: return "连续签到提醒"
-        case .challenge: return "挑战提醒"
-        }
-    }
+    var displayName: String { L10n.t("reminder.kind.\(rawValue)") }
 
-    var defaultTitle: String {
-        switch self {
-        case .quest: return "任务到点了"
-        case .habit: return "该打卡了"
-        case .planning: return "规划明天的主线"
-        case .bedtime: return "该休息了"
-        case .streak: return "别断了连续记录"
-        case .challenge: return "挑战进度检查"
-        }
-    }
+    var defaultTitle: String { L10n.t("reminder.title.\(rawValue)") }
 }
 
 /// 本地通知的调度记录。真正的注册在 `NotificationService`，

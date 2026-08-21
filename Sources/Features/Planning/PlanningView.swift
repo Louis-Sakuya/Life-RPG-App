@@ -1,46 +1,40 @@
 import SwiftUI
 
-/// 未来规划。整个产品的核心页面：在这里安排的任务，到了那天会自动成为主线并带 +20% 加成。
-///
-/// 这个自动化不依赖任何定时任务，而是由 `Quest.kind` 的派生规则天然实现的
-/// （计划日晚于创建日 → 主线）。
+/// 已张贴委托的日历。真正的发布走工会问答向导；这里只负责查看某一天会出现什么。
 struct PlanningView: View {
     @Environment(GameStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.palette) private var palette
 
     @State private var targetDate = Date()
-    @State private var quickAddText = ""
-    @State private var isPresentingEditor = false
-    @State private var isPresentingRepeat = false
+    @State private var publishLaunch: QuestPublishLaunch?
     @State private var didLoad = false
 
     private var targetDay: GameDay {
-        store.container.calendar.gameDay(for: targetDate)
+        store.container.calendar.gameDay(fromDisplayDate: targetDate)
     }
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Picker("规划哪天", selection: $targetDate) {
-                        Text("今天").tag(dayDate(offset: 0))
-                        Text("明天").tag(dayDate(offset: 1))
-                        Text("后天").tag(dayDate(offset: 2))
+                    Picker(L10n.t("planning.which_day"), selection: $targetDate) {
+                        Text(L10n.t("common.today")).tag(dayDate(offset: 0))
+                        Text(L10n.t("common.tomorrow")).tag(dayDate(offset: 1))
+                        Text(L10n.t("common.day_after")).tag(dayDate(offset: 2))
                     }
                     .pickerStyle(.segmented)
 
-                    DatePicker("自定义日期", selection: $targetDate, displayedComponents: .date)
+                    DatePicker(L10n.t("planning.custom_date"), selection: $targetDate, displayedComponents: .date)
                 } header: {
-                    Text("目标日")
+                    Text(L10n.t("planning.target_day"))
                 } footer: {
                     Text(hintText)
                 }
 
-                Section("当天安排") {
+                Section(L10n.t("planning.day_quests")) {
                     let quests = store.quests(on: targetDay)
                     if quests.isEmpty {
-                        Text("这一天还是空的")
+                        Text(L10n.t("planning.empty"))
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(quests) { quest in
@@ -52,28 +46,13 @@ struct PlanningView: View {
                             }
                         }
                     }
-
-                    HStack {
-                        TextField("添加任务…", text: $quickAddText)
-                            .onSubmit(quickAdd)
-                        Button(action: quickAdd) {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(palette.accent)
-                        }
-                        .disabled(quickAddText.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
                 }
 
                 Section {
                     Button {
-                        isPresentingEditor = true
+                        publishLaunch = QuestPublishLaunch()
                     } label: {
-                        Label("详细添加（难度、技能、截止时间）", systemImage: "slider.horizontal.3")
-                    }
-                    Button {
-                        isPresentingRepeat = true
-                    } label: {
-                        Label("添加周期任务", systemImage: "repeat")
+                        Label(L10n.t("quest.publish"), systemImage: "scroll.fill")
                     }
                 }
 
@@ -84,24 +63,21 @@ struct PlanningView: View {
                                 .foregroundStyle(.secondary)
                         }
                     } header: {
-                        Text("当天会自动生成的重复任务")
+                        Text(L10n.t("planning.repeat_preview"))
                     } footer: {
-                        Text("重复任务在当天开始时自动生成，视同提前规划。")
+                        Text(L10n.t("planning.repeat_footer"))
                     }
                 }
             }
-            .navigationTitle("规划")
+            .navigationTitle(L10n.t("planning.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
+                    Button(L10n.t("common.done")) { dismiss() }
                 }
             }
-            .sheet(isPresented: $isPresentingEditor) {
-                QuestEditorView(quest: nil, defaultDay: targetDay)
-            }
-            .sheet(isPresented: $isPresentingRepeat) {
-                RepeatTemplateEditorView()
+            .sheet(item: $publishLaunch) { launch in
+                QuestPublishWizardView(initialBoardKind: launch.boardKind)
             }
             .onAppear {
                 guard !didLoad else { return }
@@ -113,9 +89,9 @@ struct PlanningView: View {
 
     private var hintText: String {
         if targetDay > store.today {
-            return "安排在未来的任务，到了那天会自动变成主线，并获得 +20% 提前规划加成。"
+            return L10n.t("planning.hint.ahead")
         }
-        return "安排在今天的任务是支线，奖励会打五折。规划的价值就在这个差距里。"
+        return L10n.t("planning.hint.today")
     }
 
     /// 只做展示不落库。提前把重复任务写进数据库会导致模板改动后留下孤儿实例。
@@ -143,12 +119,5 @@ struct PlanningView: View {
     private func dayDate(offset: Int) -> Date {
         let calendar = store.container.calendar
         return calendar.displayDate(of: calendar.adding(days: offset, to: store.today))
-    }
-
-    private func quickAdd() {
-        let title = quickAddText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
-        store.createQuest(title: title, scheduledDay: targetDay)
-        quickAddText = ""
     }
 }

@@ -20,6 +20,8 @@ struct LifeRPGApp: App {
             RootView()
                 .environment(store)
                 .environment(\.palette, store.palette)
+                .environment(\.locale, store.locale)
+                .id(store.languageCode)
                 .modelContainer(store.container.modelContainer)
                 .preferredColorScheme(colorScheme)
                 .task {

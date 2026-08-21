@@ -3,10 +3,16 @@ import SwiftData
 
 struct LevelUpEvent: Identifiable, Hashable, Sendable {
     var id = UUID()
-    /// 技能升级时为技能名，玩家升级时为 nil
-    var skillName: String?
+    /// 技能或属性升级时为名称，玩家升级时为 nil
+    var skillName: String? = nil
+    /// 预设技能目录 id。弹层用它取当前语言的名称；自定义技能为空。
+    var catalogID: String? = nil
+    /// 核心属性升级时记录 id，展示时按当前语言取名。
+    var statID: CoreStatID? = nil
     var level: Int
     var goldReward: Int
+    /// 玩家升级后需要在金币之外再选一项额外奖励
+    var requiresChoice: Bool = false
 }
 
 /// 经济系统的唯一写入口。任何 EXP / Gold 的变动都必须经过这里，
@@ -137,6 +143,7 @@ final class RewardService {
         }
 
         applySkillEXP(transaction.skillEXP, sign: sign)
+        applyStatEXP(from: transaction.skillEXP, sign: sign, to: player)
         updateDailyRecord(transaction, sign: sign)
 
         // 升级奖励只在正向发放时结算，回滚时不再倒扣升级金币，
@@ -155,7 +162,31 @@ final class RewardService {
             skill.totalEXP = max(0, skill.totalEXP + amount * sign)
             guard sign > 0 else { continue }
             for level in config.skillCurve.levelsGained(from: before, to: skill.totalEXP) {
-                pendingLevelUps.append(LevelUpEvent(skillName: skill.name, level: level, goldReward: 0))
+                pendingLevelUps.append(
+                    LevelUpEvent(
+                        skillName: skill.name,
+                        catalogID: skill.catalogID.isEmpty ? nil : skill.catalogID,
+                        level: level,
+                        goldReward: 0
+                    )
+                )
+            }
+        }
+    }
+
+    private func applyStatEXP(from skillEXP: [UUID: Int], sign: Int, to player: Player) {
+        guard !skillEXP.isEmpty else { return }
+        let lookup = skills.skills(ids: Array(skillEXP.keys))
+        let snapshots = lookup.mapValues(\.snapshot)
+        let distributed = StatEngine.distribute(skillEXP: skillEXP, skills: snapshots)
+        for (stat, amount) in distributed {
+            let before = player.exp(for: stat)
+            player.addEXP(amount * sign, to: stat)
+            guard sign > 0 else { continue }
+            for level in config.statCurve.levelsGained(from: before, to: player.exp(for: stat)) {
+                pendingLevelUps.append(
+                    LevelUpEvent(skillName: stat.title, statID: stat, level: level, goldReward: 0)
+                )
             }
         }
     }
@@ -181,16 +212,17 @@ final class RewardService {
         for level in gained where level > player.highestLevelRewarded {
             player.highestLevelRewarded = level
             let gold = engine.levelUpGold(forLevel: level)
-            pendingLevelUps.append(LevelUpEvent(skillName: nil, level: level, goldReward: gold))
+            pendingLevelUps.append(LevelUpEvent(skillName: nil, level: level, goldReward: gold, requiresChoice: true))
+            player.unclaimedLevelUpChoices += 1
 
             let bonus = RewardTransaction(
                 sourceKind: .levelUp,
                 sourceRuleID: "level_\(level)",
-                sourceTitle: "升级到 Lv\(level)",
+                sourceTitle: L10n.format("reward.level_title", level),
                 expDelta: 0,
                 goldDelta: gold,
                 day: day,
-                breakdown: "升级奖励 \(gold) G"
+                breakdown: L10n.format("reward.level_breakdown", gold)
             )
             records.insert(bonus)
             player.gold += gold

@@ -46,7 +46,7 @@ final class NotificationService {
                 identifier: Prefix.habit + habit.id.uuidString,
                 hour: habit.reminderHour,
                 minute: habit.reminderMinute,
-                title: "该打卡了",
+                title: L10n.t("reminder.title.habit"),
                 body: habit.name
             )
         }
@@ -56,7 +56,7 @@ final class NotificationService {
             scheduleOnce(
                 identifier: Prefix.quest + quest.id.uuidString,
                 at: dueAt,
-                title: "任务到点了",
+                title: L10n.t("reminder.title.quest"),
                 body: quest.title
             )
         }
@@ -67,7 +67,7 @@ final class NotificationService {
                 hour: settings.planningReminderHour,
                 minute: settings.planningReminderMinute,
                 title: ReminderKind.planning.defaultTitle,
-                body: "花两分钟规划明天的主线，明天完成能多拿 20% 奖励"
+                body: L10n.t("notify.planning.body")
             )
         }
 
@@ -77,7 +77,7 @@ final class NotificationService {
                 hour: settings.bedtimeReminderHour,
                 minute: settings.bedtimeReminderMinute,
                 title: ReminderKind.bedtime.defaultTitle,
-                body: "今天的冒险结束了，好好休息"
+                body: L10n.t("notify.bedtime.body")
             )
         }
     }

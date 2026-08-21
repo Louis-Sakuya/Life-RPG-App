@@ -7,13 +7,7 @@ enum QuestKind: String, Codable, CaseIterable, Sendable {
     case side
     case repeating
 
-    var title: String {
-        switch self {
-        case .main: return "主线"
-        case .side: return "支线"
-        case .repeating: return "重复"
-        }
-    }
+    var title: String { L10n.t("quest.kind.\(rawValue)") }
 
     var iconName: String {
         switch self {
@@ -39,15 +33,7 @@ enum QuestDifficulty: Int, Codable, CaseIterable, Identifiable, Sendable {
 
     var id: Int { rawValue }
 
-    var title: String {
-        switch self {
-        case .trivial: return "轻松"
-        case .easy: return "简单"
-        case .normal: return "普通"
-        case .hard: return "困难"
-        case .epic: return "史诗"
-        }
-    }
+    var title: String { L10n.t("quest.difficulty.\(String(describing: self))") }
 }
 
 enum QuestPriority: Int, Codable, CaseIterable, Identifiable, Sendable {
@@ -59,14 +45,31 @@ enum QuestPriority: Int, Codable, CaseIterable, Identifiable, Sendable {
 
     var id: Int { rawValue }
 
-    var title: String {
-        switch self {
-        case .lowest: return "最低"
-        case .low: return "较低"
-        case .normal: return "普通"
-        case .high: return "较高"
-        case .critical: return "最高"
+    var title: String { L10n.t("quest.priority.\(String(describing: self))") }
+}
+
+/// 工会任务栏排序：未完成在上、已完成沉底；同组内优先级从高到低。
+enum QuestBoardOrdering {
+    static func appearsBefore(
+        lhsCompleted: Bool,
+        lhsPriority: Int,
+        lhsSortOrder: Int,
+        lhsCreatedAt: Date,
+        rhsCompleted: Bool,
+        rhsPriority: Int,
+        rhsSortOrder: Int,
+        rhsCreatedAt: Date
+    ) -> Bool {
+        if lhsCompleted != rhsCompleted {
+            return !lhsCompleted && rhsCompleted
         }
+        if lhsPriority != rhsPriority {
+            return lhsPriority > rhsPriority
+        }
+        if lhsSortOrder != rhsSortOrder {
+            return lhsSortOrder < rhsSortOrder
+        }
+        return lhsCreatedAt < rhsCreatedAt
     }
 }
 
@@ -85,19 +88,18 @@ enum RecurrenceRule: Codable, Hashable, Sendable {
     var displayText: String {
         switch self {
         case .daily(let interval):
-            return interval <= 1 ? "每天" : "每 \(interval) 天"
+            return interval <= 1 ? L10n.t("recurrence.daily") : L10n.format("recurrence.every_n_days", interval)
         case .weekly(let weekdays):
-            let names = ["日", "一", "二", "三", "四", "五", "六"]
             let picked = weekdays.sorted().compactMap { index -> String? in
                 guard index >= 1, index <= 7 else { return nil }
-                return "周" + names[index - 1]
+                return L10n.t("weekday.name.\(index)")
             }
-            return picked.isEmpty ? "每周" : picked.joined(separator: " ")
+            return picked.isEmpty ? L10n.t("recurrence.weekly_empty") : picked.joined(separator: " ")
         case .timesPerWeek(let count):
-            return "每周 \(count) 次"
+            return L10n.format("recurrence.times", count)
         case .monthly(let days):
-            let picked = days.sorted().map { "\($0)日" }
-            return picked.isEmpty ? "每月" : "每月 " + picked.joined(separator: " ")
+            let picked = days.sorted().map { L10n.format("recurrence.month_day", $0) }
+            return picked.isEmpty ? L10n.t("recurrence.monthly_empty") : L10n.format("recurrence.monthly_prefix", picked.joined(separator: " "))
         }
     }
 }
@@ -109,8 +111,8 @@ enum RecurrenceStartPolicy: String, Codable, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .thisPeriod: return "从本周开始"
-        case .nextPeriod: return "从下周开始"
+        case .thisPeriod: return L10n.t("recurrence.this_period")
+        case .nextPeriod: return L10n.t("recurrence.next_period")
         }
     }
 }

@@ -53,6 +53,62 @@ struct SectionHeader: View {
     }
 }
 
+// MARK: - 工会选择卡片
+
+struct GuildChoiceCard: View {
+    var icon: String
+    var title: String
+    var subtitle: String
+    var detail: String
+    var tint: Color
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(tint)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(tint.opacity(0.16))
+                    )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(tint)
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 14)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(tint.opacity(0.28), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - 进度条
 
 struct ProgressBar: View {
@@ -89,11 +145,52 @@ struct StatPill: View {
             Text(text)
                 .font(.caption)
                 .fontWeight(.medium)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(Capsule().fill(tint.opacity(0.15)))
         .foregroundStyle(tint)
+    }
+}
+
+/// 金币余额。不用美元符号，避免被挤成只剩图标、数字消失。
+struct GoldBadge: View {
+    var amount: Int
+    var showsPrefix: Bool = false
+    var infinite: Bool = false
+
+    private var goldTint: Color { Color(hex: "#D4A017") }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ZStack {
+                Circle()
+                    .fill(goldTint)
+                    .frame(width: 16, height: 16)
+                Text("G")
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            Text(label)
+                .font(.subheadline.weight(.bold).monospacedDigit())
+                .foregroundStyle(goldTint)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(Capsule().fill(goldTint.opacity(0.16)))
+        .fixedSize()
+        .accessibilityLabel(
+            infinite ? L10n.t("gold.accessibility.infinite") : L10n.format("gold.accessibility", amount)
+        )
+    }
+
+    private var label: String {
+        if infinite { return L10n.t("gold.infinite") }
+        if showsPrefix && amount > 0 { return "+\(amount)" }
+        return "\(amount)"
     }
 }
 
@@ -230,29 +327,51 @@ struct ColorPickerRow: View {
 struct SkillShareEditor: View {
     var skills: [Skill]
     @Binding var shares: [UUID: Double]
+    /// 为 true 时所有技能共用 100%，拖动一个会按比例改写其余技能
+    var requiresFullAllocation: Bool = false
+
+    private var total: Double { SkillShareMath.total(shares) }
 
     var body: some View {
         if skills.isEmpty {
-            Text("还没有技能，先去成长页创建一个")
+            Text(L10n.t("skill.no_share"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         } else {
+            HStack {
+                Text(requiresFullAllocation ? L10n.t("skill.share_all") : L10n.t("skill.share_partial"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(L10n.format("skill.allocated", Int((total * 100).rounded())))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(SkillShareMath.isFullAllocation(shares) ? Color.green : Color.orange)
+            }
+
             ForEach(skills) { skill in
                 let share = shares[skill.id] ?? 0
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Image(systemName: skill.iconName)
                             .foregroundStyle(Color(hex: skill.colorHex))
-                        Text(skill.name)
+                        Text(skill.localizedName)
                         Spacer()
-                        Text(share > 0 ? "\(Int(share * 100))%" : "关闭")
+                        Text(share > 0 ? "\(Int((share * 100).rounded()))%" : L10n.t("common.close"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     Slider(
                         value: Binding(
                             get: { shares[skill.id] ?? 0 },
-                            set: { shares[skill.id] = ($0 * 20).rounded() / 20 }
+                            set: { newValue in
+                                shares = SkillShareMath.setShare(
+                                    newValue,
+                                    for: skill.id,
+                                    in: shares,
+                                    ids: skills.map(\.id),
+                                    keepFullAllocation: requiresFullAllocation
+                                )
+                            }
                         ),
                         in: 0...1
                     )

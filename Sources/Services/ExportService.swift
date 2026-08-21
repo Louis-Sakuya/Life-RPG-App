@@ -31,6 +31,13 @@ struct BackupPayload: Codable {
         var latestCompletionHour: Int
         /// 可选，旧版本备份没有这个字段
         var highestLevelRewarded: Int?
+        var skillSlotCap: Int?
+        var unclaimedLevelUpChoices: Int?
+        var bodyPoints: Int?
+        var mindPoints: Int?
+        var lifePoints: Int?
+        var socialPoints: Int?
+        var creationPoints: Int?
     }
 
     struct SkillDTO: Codable {
@@ -153,10 +160,16 @@ final class ExportService {
         try context.save()
     }
 
+    /// 注销账户：清空全部本地存档。调用方随后需要重新播种并进入初始化流程。
+    func resetSave() throws {
+        try wipeAll()
+        try context.save()
+    }
+
     // MARK: - CSV
 
     func exportQuestsCSV() throws -> URL {
-        var rows = ["日期,标题,类型,状态,难度,优先级,预计分钟,标签,完成时间,是否延期"]
+        var rows = [L10n.t("export.quests.header")]
         let formatter = ISO8601DateFormatter()
         for quest in QuestRepository(context: context).allQuests() {
             let completed = quest.completedAt.map { formatter.string(from: $0) } ?? ""
@@ -170,14 +183,14 @@ final class ExportService {
                 String(quest.estimatedMinutes),
                 escape(quest.tags.joined(separator: "|")),
                 completed,
-                quest.isOverdue ? "是" : "否"
+                quest.isOverdue ? L10n.t("common.yes") : L10n.t("common.no")
             ].joined(separator: ","))
         }
         return try write(csvData(rows), name: "LifeRPG-Quests-\(timestamp()).csv")
     }
 
     func exportDailyRecordsCSV() throws -> URL {
-        var rows = ["日期,获得EXP,获得Gold,计划任务,完成任务,主线完成,支线完成,习惯打卡,习惯目标,完成率,专注分钟"]
+        var rows = [L10n.t("export.daily.header")]
         for record in RecordRepository(context: context).allRecords() {
             rows.append([
                 record.day.description,
@@ -211,37 +224,37 @@ final class ExportService {
             pdfContext.beginPage()
             var cursor: CGFloat = 48
 
-            draw("Life RPG 成长报告", at: &cursor, size: 26, weight: .bold, pageRect: pageRect)
+            draw(L10n.t("export.pdf.title"), at: &cursor, size: 26, weight: .bold, pageRect: pageRect)
             draw(dateText(), at: &cursor, size: 12, weight: .regular, pageRect: pageRect)
             cursor += 16
 
-            draw("角色", at: &cursor, size: 18, weight: .semibold, pageRect: pageRect)
-            draw("昵称：\(player.nickname)", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
-            draw("等级：Lv\(progress.level)（\(progress.currentEXP)/\(max(progress.requiredEXP, 1)) EXP）", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
-            draw("金币：\(player.gold)", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
-            draw("连续登录：\(player.loginStreakCurrent) 天（最长 \(player.loginStreakBest) 天）", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
-            draw("累计天数：\(player.totalDaysPlayed)", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+            draw(L10n.t("export.pdf.character"), at: &cursor, size: 18, weight: .semibold, pageRect: pageRect)
+            draw(L10n.format("export.pdf.nickname", player.nickname), at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+            draw(L10n.format("export.pdf.level", progress.level, progress.currentEXP, max(progress.requiredEXP, 1)), at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+            draw(L10n.format("export.pdf.gold", player.gold), at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+            draw(L10n.format("export.pdf.streak", player.loginStreakCurrent, player.loginStreakBest), at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+            draw(L10n.format("export.pdf.days", player.totalDaysPlayed), at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
             cursor += 12
 
-            draw("任务", at: &cursor, size: 18, weight: .semibold, pageRect: pageRect)
-            draw("累计完成：\(player.totalQuestsCompleted)（主线 \(player.totalMainQuestsCompleted) / 支线 \(player.totalSideQuestsCompleted)）", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
-            draw("习惯打卡：\(player.totalHabitCheckIns) 次", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
-            draw("完美达成天数：\(player.perfectDays)", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+            draw(L10n.t("export.pdf.quests"), at: &cursor, size: 18, weight: .semibold, pageRect: pageRect)
+            draw(L10n.format("export.pdf.quests_done", player.totalQuestsCompleted, player.totalMainQuestsCompleted, player.totalSideQuestsCompleted), at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+            draw(L10n.format("export.pdf.habits", player.totalHabitCheckIns), at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+            draw(L10n.format("export.pdf.perfect", player.perfectDays), at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
             cursor += 12
 
-            draw("技能", at: &cursor, size: 18, weight: .semibold, pageRect: pageRect)
+            draw(L10n.t("export.pdf.skills"), at: &cursor, size: 18, weight: .semibold, pageRect: pageRect)
             for skill in skills.prefix(20) {
                 let level = config.skillCurve.level(forTotalEXP: skill.totalEXP)
-                draw("\(skill.name)  Lv\(level)  （\(skill.totalEXP) EXP）", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+                draw("\(skill.localizedName)  Lv\(level)  (\(skill.totalEXP) EXP)", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
             }
             cursor += 12
 
-            draw("统计", at: &cursor, size: 18, weight: .semibold, pageRect: pageRect)
+            draw(L10n.t("export.pdf.stats"), at: &cursor, size: 18, weight: .semibold, pageRect: pageRect)
             let totalEXP = records.reduce(0) { $0 + $1.expEarned }
             let totalGold = records.reduce(0) { $0 + $1.goldEarned }
             let activeDays = records.filter { $0.questsCompleted > 0 || $0.habitCheckIns > 0 }.count
-            draw("有记录天数：\(records.count)，其中活跃 \(activeDays) 天", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
-            draw("累计获得：\(totalEXP) EXP / \(totalGold) Gold", at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+            draw(L10n.format("export.pdf.records", records.count, activeDays), at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
+            draw(L10n.format("export.pdf.lifetime", totalEXP, totalGold), at: &cursor, size: 13, weight: .regular, pageRect: pageRect)
         }
 
         return try write(data, name: "LifeRPG-Report-\(timestamp()).pdf")
@@ -283,7 +296,14 @@ final class ExportService {
                 perfectDays: player.perfectDays,
                 earliestCompletionHour: player.earliestCompletionHour,
                 latestCompletionHour: player.latestCompletionHour,
-                highestLevelRewarded: player.highestLevelRewarded
+                highestLevelRewarded: player.highestLevelRewarded,
+                skillSlotCap: player.skillSlotCap,
+                unclaimedLevelUpChoices: player.unclaimedLevelUpChoices,
+                bodyPoints: player.bodyPoints,
+                mindPoints: player.mindPoints,
+                lifePoints: player.lifePoints,
+                socialPoints: player.socialPoints,
+                creationPoints: player.creationPoints
             ),
             skills: skillRepo.allSkills(includeArchived: true).map {
                 BackupPayload.SkillDTO(
@@ -408,8 +428,20 @@ final class ExportService {
         player.latestCompletionHour = payload.player.latestCompletionHour
         player.highestLevelRewarded = payload.player.highestLevelRewarded
             ?? config.playerCurve.level(forTotalEXP: payload.player.totalEXP)
+        player.skillSlotCap = max(
+            payload.player.skillSlotCap ?? config.balance.initialSkillSlots,
+            payload.skills.filter { !$0.isArchived }.count
+        )
+        player.unclaimedLevelUpChoices = payload.player.unclaimedLevelUpChoices ?? 0
+        player.bodyPoints = payload.player.bodyPoints ?? 0
+        player.mindPoints = payload.player.mindPoints ?? 0
+        player.lifePoints = payload.player.lifePoints ?? 0
+        player.socialPoints = payload.player.socialPoints ?? 0
+        player.creationPoints = payload.player.creationPoints ?? 0
         context.insert(player)
-        context.insert(AppSettings())
+        let settings = AppSettings()
+        settings.hasCompletedOnboarding = true
+        context.insert(settings)
 
         for dto in payload.skills {
             let skill = Skill(name: dto.name, iconName: dto.iconName, colorHex: dto.colorHex, sortOrder: dto.sortOrder)
@@ -531,8 +563,9 @@ final class ExportService {
 
     private func dateText() -> String {
         let formatter = DateFormatter()
+        formatter.locale = L10n.locale
         formatter.dateStyle = .long
-        return "导出于 " + formatter.string(from: Date())
+        return L10n.format("export.pdf.exported", formatter.string(from: Date()))
     }
 
     private func draw(

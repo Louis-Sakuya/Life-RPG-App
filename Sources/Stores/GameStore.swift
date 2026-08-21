@@ -14,15 +14,26 @@ final class GameStore {
     private(set) var today: GameDay
 
     private(set) var todayQuests: [Quest] = []
+    private(set) var todayCompletedQuests: [Quest] = []
     private(set) var overdueQuests: [Quest] = []
+    /// 开始日已过、但截止日期还没到的长期委托，仍然挂在今日任务栏上
+    private(set) var spanningQuests: [Quest] = []
     private(set) var habits: [Habit] = []
     private(set) var skills: [Skill] = []
     private(set) var todayRecord: DailyRecord?
     private(set) var palette: ThemePalette = .default
+    /// 当前界面语言。设置页切换后 SwiftUI 用 `.id` 重建整棵界面。
+    private(set) var languageCode: String = AppLanguage.system.rawValue
+    /// 还没走完首次冒险者设定时，主界面让位给初始化流程。
+    private(set) var needsOnboarding = true
 
-    /// 待展示的庆祝弹窗。视图消费后清空，避免同一个升级重复弹。
+    /// 待选择的玩家升级额外奖励。金币已经发放，这里只处理属性点或技能栏位。
+    var pendingLevelUpChoices: [LevelUpEvent] = []
+    /// 刚选了技能栏位时，先把“现在学习 / 稍后”留在界面上。
+    var skillSlotFollowUp: LevelUpEvent?
     var pendingLevelUps: [LevelUpEvent] = []
     var pendingUnlocks: [UnlockRule] = []
+    var pendingFortunes: [FortuneEvent] = []
 
     private var hasBootstrapped = false
 
@@ -32,6 +43,9 @@ final class GameStore {
         self.player = repository.currentPlayer()
         self.settings = repository.settings()
         self.today = container.calendar.today
+        L10n.bootstrap()
+        applyLanguage(settings.language)
+        needsOnboarding = !settings.hasCompletedOnboarding
     }
 
     // MARK: - 生命周期
@@ -40,14 +54,18 @@ final class GameStore {
         guard !hasBootstrapped else { return }
         hasBootstrapped = true
         container.bootstrap()
-        let repository = PlayerRepository(context: container.context)
-        player = repository.currentPlayer()
-        settings = repository.settings()
-        runDayCycle()
+        reloadIdentities()
+        if needsOnboarding {
+            refresh()
+            save()
+        } else {
+            runDayCycle()
+        }
     }
 
     /// 回到前台时调用。跨过午夜的场景就是靠这里被捕捉到的。
     func onForeground() {
+        guard !needsOnboarding else { return }
         runDayCycle()
         // 通知采用全量重建，回到前台时重排一次即可覆盖"任务改期""习惯删除"等所有变化
         syncNotifications()
@@ -70,14 +88,30 @@ final class GameStore {
         let skillRepo = SkillRepository(context: container.context)
         let recordRepo = RecordRepository(context: container.context)
 
+        let playerRepo = PlayerRepository(context: container.context)
+        player = playerRepo.currentPlayer()
+        settings = playerRepo.settings()
+
         todayQuests = questRepo.quests(on: today)
-        overdueQuests = questRepo.unfinishedQuests(before: today)
+        todayCompletedQuests = questRepo.questsCompleted(on: today)
+        let unfinished = questRepo.unfinishedQuests(before: today)
+        overdueQuests = unfinished.filter { quest in
+            if let dueAt = quest.dueAt {
+                return container.calendar.gameDay(for: dueAt) < today
+            }
+            return true
+        }
+        spanningQuests = unfinished.filter { quest in
+            guard let dueAt = quest.dueAt else { return false }
+            return container.calendar.gameDay(for: dueAt) >= today
+        }
         habits = habitRepo.allHabits()
         skills = skillRepo.allSkills()
         todayRecord = recordRepo.record(on: today)
         palette = container.shop.palette(for: player)
 
         collectLevelUps()
+        collectFortunes()
     }
 
     func save() {
@@ -98,6 +132,34 @@ final class GameStore {
         todayQuests.filter { $0.kind == .side }
     }
 
+    /// 工会任务栏上的主线：今天的主线 / 重复实例，以及仍在截止日期内的跨日委托。
+    /// 当天完成的任务留在栏上划掉并沉底，不从列表里拿掉。
+    var guildMainQuests: [Quest] {
+        mergedBoard(
+            primary: mainQuests,
+            extra: spanningQuests.filter { $0.kind != .side },
+            completedToday: todayCompletedQuests.filter { $0.kind != .side }
+        )
+    }
+
+    var guildSideQuests: [Quest] {
+        mergedBoard(
+            primary: sideQuests,
+            extra: spanningQuests.filter { $0.kind == .side },
+            completedToday: todayCompletedQuests.filter { $0.kind == .side }
+        )
+    }
+
+    private func mergedBoard(primary: [Quest], extra: [Quest], completedToday: [Quest]) -> [Quest] {
+        var seen = Set<UUID>()
+        var result: [Quest] = []
+        for quest in primary + extra + completedToday {
+            guard seen.insert(quest.id).inserted else { continue }
+            result.append(quest)
+        }
+        return result.sorted(by: Quest.boardOrder)
+    }
+
     var todayEXP: Int { todayRecord?.expEarned ?? 0 }
     var todayGold: Int { todayRecord?.goldEarned ?? 0 }
     var todayCompletionRate: Double { todayRecord?.completionRate ?? 0 }
@@ -110,13 +172,62 @@ final class GameStore {
         StreakEngine.nextTier(forDays: player.loginStreakCurrent, tiers: container.config.balance.streakTiers)
     }
 
+    var locale: Locale { L10n.locale }
+
     var currentTitleName: String? {
         guard let id = player.currentTitleID else { return nil }
-        return container.config.unlocks.rule(id: id)?.name
+        return container.config.unlocks.rule(id: id)?.localizedName
     }
 
     func skillProgress(_ skill: Skill) -> LevelProgress {
         container.config.skillCurve.progress(totalEXP: skill.totalEXP)
+    }
+
+    func allocatedPoints(for stat: CoreStatID) -> Int {
+        player.allocatedPoints(for: stat)
+    }
+
+    func effectiveStatLevel(_ stat: CoreStatID) -> Int {
+        statProgress(stat).level + player.allocatedPoints(for: stat)
+    }
+
+    func skillQuestBonus(for skill: Skill) -> Double {
+        ProgressionEngine.bonus(
+            level: skillProgress(skill).level,
+            perLevel: container.config.balance.skillQuestBonusPerLevel,
+            cap: container.config.balance.skillQuestBonusMax
+        )
+    }
+
+    func skillXPBonus(for skill: Skill) -> Double {
+        ProgressionEngine.skillXPMultiplier(
+            affinities: skill.affinities,
+            statLevels: Dictionary(uniqueKeysWithValues: CoreStatID.allCases.map { ($0, effectiveStatLevel($0)) }),
+            perLevel: container.config.balance.statSkillXPBonusPerLevel,
+            cap: container.config.balance.statSkillXPBonusMax
+        )
+    }
+
+    var skillSlotCap: Int { max(1, player.skillSlotCap) }
+    var learnedSkillCount: Int { skills.count }
+    var canLearnSkill: Bool { learnedSkillCount < skillSlotCap }
+
+    func statProgress(_ stat: CoreStatID) -> LevelProgress {
+        container.config.statCurve.progress(totalEXP: player.exp(for: stat))
+    }
+
+    func luckyProgress() -> LevelProgress {
+        container.config.statCurve.progress(totalEXP: player.luckyEXP)
+    }
+
+    var todayFortune: FortuneTier? {
+        container.lucky.activeFortune(for: player, on: today)
+    }
+
+    func skills(feeding stat: CoreStatID) -> [Skill] {
+        skills.filter { skill in
+            skill.affinities.contains { $0.stat == stat && $0.weight > 0 }
+        }
     }
 
     func habitProgress(_ habit: Habit) -> Int {
@@ -138,7 +249,8 @@ final class GameStore {
         estimatedMinutes: Int = 30,
         scheduledDay: GameDay,
         dueAt: Date? = nil,
-        skillShares: [SkillShare] = []
+        skillShares: [SkillShare] = [],
+        preferredKind: QuestKind? = nil
     ) {
         container.quests.createQuest(
             title: title,
@@ -149,7 +261,8 @@ final class GameStore {
             estimatedMinutes: estimatedMinutes,
             scheduledDay: scheduledDay,
             dueAt: dueAt,
-            skillShares: skillShares
+            skillShares: skillShares,
+            preferredKind: preferredKind
         )
         commit()
     }
@@ -252,17 +365,63 @@ final class GameStore {
 
     // MARK: - 技能
 
-    func createSkill(name: String, iconName: String, colorHex: String) {
+    func createSkill(
+        name: String,
+        iconName: String,
+        colorHex: String,
+        catalogID: String = "",
+        categories: [String] = [],
+        affinities: [StatAffinity] = []
+    ) -> Bool {
+        guard canLearnSkill else { return false }
         let repository = SkillRepository(context: container.context)
-        repository.insert(
-            Skill(name: name, iconName: iconName, colorHex: colorHex, sortOrder: repository.allSkills().count)
-        )
+        let skill = Skill(name: name, iconName: iconName, colorHex: colorHex, sortOrder: repository.allSkills().count)
+        skill.catalogID = catalogID
+        skill.categoryTokens = categories
+        skill.affinities = affinities
+        repository.insert(skill)
         commit()
+        return true
+    }
+
+    @discardableResult
+    func createSkill(from preset: SkillPreset) -> Bool {
+        createSkill(
+            name: preset.name,
+            iconName: preset.icon,
+            colorHex: preset.color,
+            catalogID: preset.id,
+            categories: preset.categories,
+            affinities: preset.parsedAffinities
+        )
     }
 
     func deleteSkill(_ skill: Skill) {
+        let skillID = skill.id
+        QuestRepository(context: container.context).detachSkill(skillID)
+        let habits = HabitRepository(context: container.context)
+        for habit in habits.allHabits(includeArchived: true) {
+            habit.skillShares = habit.skillShares.filter { $0.skillID != skillID }
+        }
         SkillRepository(context: container.context).delete(skill)
         commit()
+    }
+
+    func claimLevelUpStatBonus(_ stat: CoreStatID) {
+        guard consumeLevelUpChoice() else { return }
+        player.addAllocatedPoint(to: stat)
+        commit()
+    }
+
+    func claimLevelUpSkillSlot() {
+        guard let event = pendingLevelUpChoices.first, consumeLevelUpChoice() else { return }
+        player.skillSlotCap += 1
+        skillSlotFollowUp = event
+        commit()
+    }
+
+    func dismissSkillSlotFollowUp() {
+        skillSlotFollowUp = nil
     }
 
     // MARK: - 重复任务模板
@@ -279,18 +438,23 @@ final class GameStore {
         estimatedMinutes: Int,
         recurrence: RecurrenceRule,
         startPolicy: RecurrenceStartPolicy,
-        skillShares: [SkillShare]
+        skillShares: [SkillShare],
+        tags: [String] = [],
+        startDay: GameDay? = nil,
+        endDay: GameDay? = nil
     ) {
         let template = QuestTemplate(
             title: title,
             detail: detail,
             difficulty: difficulty,
             priority: priority,
+            tags: tags,
             estimatedMinutes: estimatedMinutes,
             recurrence: recurrence,
             startPolicy: startPolicy,
-            startDay: today
+            startDay: startDay ?? today
         )
+        template.endDay = endDay
         template.skillShares = skillShares
         QuestRepository(context: container.context).insert(template)
         runDayCycle()
@@ -361,9 +525,12 @@ final class GameStore {
 
     // MARK: - 商店
 
+    /// 测试商店沙盒：忽略等级门槛，金币视为无限。
+    var isTestShopSandboxEnabled: Bool { settings.testShopSandbox }
+
     func purchase(_ item: ShopItem) -> PurchaseError? {
         do {
-            try container.shop.purchase(item, player: player)
+            try container.shop.purchase(item, player: player, sandbox: isTestShopSandboxEnabled)
             commit()
             return nil
         } catch let error as PurchaseError {
@@ -386,6 +553,18 @@ final class GameStore {
         runDayCycle()
     }
 
+    func setTestShopSandbox(_ enabled: Bool) {
+        settings.testShopSandbox = enabled
+        save()
+    }
+
+    func updateLanguage(_ language: AppLanguage) {
+        settings.language = language
+        applyLanguage(language)
+        save()
+        syncNotifications()
+    }
+
     func syncNotifications() {
         let quests = QuestRepository(context: container.context).upcomingQuests(after: today)
         let habits = HabitRepository(context: container.context).allHabits()
@@ -396,7 +575,100 @@ final class GameStore {
         }
     }
 
+    // MARK: - 初始化 / 注销
+
+    func completeOnboarding(nickname: String, skills: [OnboardingSkillDraft]) {
+        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        player.nickname = trimmed.isEmpty ? Player.defaultNickname : trimmed
+        player.skillSlotCap = max(1, container.config.balance.initialSkillSlots)
+
+        let repository = SkillRepository(context: container.context)
+        for (index, draft) in skills.prefix(player.skillSlotCap).enumerated() {
+            let skill = Skill(
+                name: draft.name,
+                iconName: draft.iconName,
+                colorHex: draft.colorHex,
+                sortOrder: index
+            )
+            skill.catalogID = draft.catalogID
+            skill.categoryTokens = draft.categories
+            skill.affinities = draft.affinities
+            repository.insert(skill)
+        }
+
+        settings.hasCompletedOnboarding = true
+        needsOnboarding = false
+        runDayCycle()
+        syncNotifications()
+    }
+
+    /// 清空当前存档并回到初始化流程。内置挑战会在播种时重新对账。
+    func resetAccount() throws {
+        try container.export.resetSave()
+        pendingLevelUps = []
+        pendingLevelUpChoices = []
+        skillSlotFollowUp = nil
+        pendingUnlocks = []
+        pendingFortunes = []
+        _ = container.rewards.consumeLevelUps()
+        _ = container.lucky.consumeEvents()
+        container.bootstrap()
+        reloadIdentities()
+        refresh()
+        save()
+        Task {
+            await container.notifications.cancelAll()
+        }
+    }
+
+    /// 备份恢复后重新挂上身份、补齐内置挑战，并跳过初始化流程。
+    func reloadAfterRestore() {
+        container.bootstrap()
+        reloadIdentities()
+        settings.hasCompletedOnboarding = true
+        needsOnboarding = false
+        runDayCycle()
+    }
+
     // MARK: - 内部
+
+    private func reloadIdentities() {
+        let repository = PlayerRepository(context: container.context)
+        player = repository.currentPlayer()
+        settings = repository.settings()
+        applyLanguage(settings.language)
+        needsOnboarding = !settings.hasCompletedOnboarding
+        restoreUnclaimedLevelUpChoicesIfNeeded()
+    }
+
+    @discardableResult
+    private func consumeLevelUpChoice() -> Bool {
+        guard !pendingLevelUpChoices.isEmpty else { return false }
+        pendingLevelUpChoices.removeFirst()
+        player.unclaimedLevelUpChoices = max(0, player.unclaimedLevelUpChoices - 1)
+        return true
+    }
+
+    private func restoreUnclaimedLevelUpChoicesIfNeeded() {
+        let missing = player.unclaimedLevelUpChoices - pendingLevelUpChoices.count
+        guard missing > 0 else { return }
+        let firstLevel = player.highestLevelRewarded - player.unclaimedLevelUpChoices + 1
+        for index in 0..<missing {
+            pendingLevelUpChoices.append(
+                LevelUpEvent(
+                    skillName: nil,
+                    level: max(2, firstLevel + index),
+                    goldReward: 0,
+                    requiresChoice: true
+                )
+            )
+        }
+    }
+
+    private func applyLanguage(_ language: AppLanguage) {
+        L10n.language = language
+        languageCode = language.rawValue
+    }
 
     private func commit() {
         refresh()
@@ -412,8 +684,20 @@ final class GameStore {
 
     private func collectLevelUps() {
         let events = container.rewards.consumeLevelUps()
+        for event in events {
+            if event.requiresChoice {
+                pendingLevelUpChoices.append(event)
+            } else {
+                pendingLevelUps.append(event)
+            }
+        }
+        restoreUnclaimedLevelUpChoicesIfNeeded()
+    }
+
+    private func collectFortunes() {
+        let events = container.lucky.consumeEvents()
         if !events.isEmpty {
-            pendingLevelUps.append(contentsOf: events)
+            pendingFortunes.append(contentsOf: events)
         }
     }
 }

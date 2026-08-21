@@ -7,6 +7,8 @@ final class GameConfig: @unchecked Sendable {
     let modifiers: ModifierConfig
     let unlocks: UnlockCatalog
     let shop: ShopCatalog
+    let fortune: FortuneConfig
+    let skillCatalog: SkillCatalog
 
     /// 加载过程中出现的问题，展示在设置页的诊断区域，便于发现 JSON 写错
     let loadIssues: [String]
@@ -16,12 +18,16 @@ final class GameConfig: @unchecked Sendable {
         modifiers: ModifierConfig,
         unlocks: UnlockCatalog,
         shop: ShopCatalog,
+        fortune: FortuneConfig,
+        skillCatalog: SkillCatalog,
         loadIssues: [String] = []
     ) {
         self.balance = balance
         self.modifiers = modifiers
         self.unlocks = unlocks
         self.shop = shop
+        self.fortune = fortune
+        self.skillCatalog = skillCatalog
         self.loadIssues = loadIssues
     }
 
@@ -34,12 +40,16 @@ final class GameConfig: @unchecked Sendable {
         let modifiers: ModifierConfig = decode("modifiers", bundle: bundle, fallback: .fallback, issues: &issues)
         let unlocks: UnlockCatalog = decode("unlock_rules", bundle: bundle, fallback: .empty, issues: &issues)
         let shop: ShopCatalog = decode("shop_items", bundle: bundle, fallback: .fallback, issues: &issues)
+        let fortune: FortuneConfig = decode("fortune", bundle: bundle, fallback: .fallback, issues: &issues)
+        let skillCatalog: SkillCatalog = decode("skill_catalog", bundle: bundle, fallback: .fallback, issues: &issues)
 
         return GameConfig(
             balance: balance,
             modifiers: modifiers,
             unlocks: unlocks,
             shop: shop,
+            fortune: fortune,
+            skillCatalog: skillCatalog,
             loadIssues: issues
         )
     }
@@ -48,6 +58,7 @@ final class GameConfig: @unchecked Sendable {
 
     lazy var playerCurve = LevelCurve(config: balance.playerCurve)
     lazy var skillCurve = LevelCurve(config: balance.skillCurve)
+    lazy var statCurve = LevelCurve(config: balance.statCurve)
 
     func modifier(_ id: String) -> RewardModifier? {
         modifiers.modifier(id: id)
@@ -66,14 +77,14 @@ final class GameConfig: @unchecked Sendable {
         issues: inout [String]
     ) -> T {
         guard let url = locate(name, bundle: bundle) else {
-            issues.append("找不到配置文件 \(name).json，已回退到内置默认值")
+            issues.append(L10n.format("config.missing", name))
             return fallback
         }
         do {
             let data = try Data(contentsOf: url)
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
-            issues.append("配置文件 \(name).json 解析失败：\(error.localizedDescription)")
+            issues.append(L10n.format("config.parse", name, error.localizedDescription))
             return fallback
         }
     }

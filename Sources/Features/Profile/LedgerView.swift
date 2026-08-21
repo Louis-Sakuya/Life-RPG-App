@@ -11,7 +11,7 @@ struct LedgerView: View {
             let transactions = RecordRepository(context: store.container.context).recentTransactions(limit: 200)
 
             if transactions.isEmpty {
-                Text("还没有任何记录")
+                Text(L10n.t("ledger.empty"))
                     .foregroundStyle(.secondary)
             }
 
@@ -32,7 +32,7 @@ struct LedgerView: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                         if transaction.isReverted {
-                            StatPill(icon: "arrow.uturn.backward", text: "已撤销", tint: .red)
+                            StatPill(icon: "arrow.uturn.backward", text: L10n.t("ledger.reverted"), tint: .red)
                         }
                     }
                     if !transaction.breakdown.isEmpty {
@@ -45,7 +45,7 @@ struct LedgerView: View {
             }
         }
         .listStyle(.plain)
-        .navigationTitle("奖励流水")
+        .navigationTitle(L10n.t("ledger.title"))
         .navigationBarTitleDisplayMode(.inline)
     }
 

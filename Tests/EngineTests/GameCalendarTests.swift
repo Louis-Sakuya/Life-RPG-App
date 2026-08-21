@@ -125,6 +125,25 @@ final class GameCalendarTests: XCTestCase {
         XCTAssertLessThan(GameDay(year: 2026, month: 12, day: 31), GameDay(year: 2027, month: 1, day: 1))
     }
 
+    func testDateOnDayKeepsWallClockTime() {
+        let calendar = makeCalendar(dayStartHour: 4)
+        let day = GameDay(year: 2026, month: 8, day: 4)
+        let due = calendar.date(on: day, hour: 21, minute: 30)
+        XCTAssertEqual(calendar.gameDay(for: due), day)
+        XCTAssertEqual(baseCalendar.component(.hour, from: due), 21)
+        XCTAssertEqual(baseCalendar.component(.minute, from: due), 30)
+    }
+
+    func testDateMatchingTimeOfUsesSourceClock() {
+        let calendar = makeCalendar()
+        let source = date(2026, 1, 1, 18, 45)
+        let due = calendar.date(on: GameDay(year: 2026, month: 8, day: 20), matchingTimeOf: source)
+        XCTAssertEqual(baseCalendar.component(.hour, from: due), 18)
+        XCTAssertEqual(baseCalendar.component(.minute, from: due), 45)
+        XCTAssertEqual(baseCalendar.component(.month, from: due), 8)
+        XCTAssertEqual(baseCalendar.component(.day, from: due), 20)
+    }
+
     func testGameDayRoundTripsThroughRawValue() {
         let day = GameDay(year: 2026, month: 8, day: 4)
         XCTAssertEqual(day.value, 20_260_804)
@@ -132,5 +151,29 @@ final class GameCalendarTests: XCTestCase {
         XCTAssertEqual(restored.year, 2026)
         XCTAssertEqual(restored.month, 8)
         XCTAssertEqual(restored.day, 4)
+    }
+
+    // MARK: - 日期选择器
+
+    /// DatePicker 给出的是日历日午夜。走 `gameDay(for:)` 会被 dayStartHour 回退一天，
+    /// 必须用 `gameDay(fromDisplayDate:)` 才能让「选 21 号」真的落在 21 号。
+    func testDisplayDateRoundTripIgnoresDayStartHour() {
+        let calendar = makeCalendar(dayStartHour: 4)
+        let picked = GameDay(year: 2026, month: 8, day: 21)
+        let displayed = calendar.displayDate(of: picked)
+
+        XCTAssertEqual(calendar.gameDay(fromDisplayDate: displayed), picked)
+        XCTAssertEqual(calendar.gameDay(for: displayed), GameDay(year: 2026, month: 8, day: 20))
+    }
+
+    func testPickingTomorrowIsPlannedAhead() {
+        let calendar = makeCalendar(dayStartHour: 4)
+        let today = GameDay(year: 2026, month: 8, day: 20)
+        let tomorrow = calendar.adding(days: 1, to: today)
+        let picked = calendar.gameDay(fromDisplayDate: calendar.displayDate(of: tomorrow))
+
+        XCTAssertEqual(picked, tomorrow)
+        XCTAssertGreaterThan(picked, today)
+        XCTAssertEqual(calendar.gameDay(for: calendar.displayDate(of: tomorrow)), today)
     }
 }

@@ -104,6 +104,19 @@ final class Quest {
 
     var isCompleted: Bool { status == .completed }
 
+    static func boardOrder(_ lhs: Quest, _ rhs: Quest) -> Bool {
+        QuestBoardOrdering.appearsBefore(
+            lhsCompleted: lhs.isCompleted,
+            lhsPriority: lhs.priorityRaw,
+            lhsSortOrder: lhs.sortOrder,
+            lhsCreatedAt: lhs.createdAt,
+            rhsCompleted: rhs.isCompleted,
+            rhsPriority: rhs.priorityRaw,
+            rhsSortOrder: rhs.sortOrder,
+            rhsCreatedAt: rhs.createdAt
+        )
+    }
+
     /// 是否提前规划。这个判断同时决定了任务类型与 `planning` 组的加成走向。
     var isPlannedAhead: Bool {
         kind == .repeating || scheduledDayValue > createdDayValue

@@ -182,4 +182,46 @@ final class RewardEngineTests: XCTestCase {
         let quest = engine.evaluate(context())
         XCTAssertLessThan(habit.exp, quest.exp)
     }
+
+    /// 幸运日加成是独立乘数，不能被夹逼吃掉
+    func testFortuneMultipliesOutsideClamp() {
+        let fortune = FortuneConfig.fallback.tier(id: "fortune_2")
+        let clamped = engine.evaluate(context(plannedAhead: false, scheduled: yesterday, completed: today))
+        var boostedContext = context(plannedAhead: false, scheduled: yesterday, completed: today)
+        boostedContext.fortune = fortune
+        let boosted = engine.evaluate(boostedContext)
+
+        XCTAssertEqual(clamped.multiplier, boosted.multiplier, accuracy: 0.001)
+        XCTAssertEqual(boosted.fortuneMultiplier, 1.25, accuracy: 0.001)
+        XCTAssertGreaterThan(boosted.exp, clamped.exp)
+        XCTAssertGreaterThan(boosted.gold, clamped.gold)
+    }
+
+    func testHigherSkillLevelIncreasesQuestReward() {
+        let skill = UUID()
+        let shares = [SkillShare(skillID: skill, expShare: 1)]
+        var plain = context(shares: shares)
+        plain.skillLevels = [skill: 1]
+        var trained = context(shares: shares)
+        trained.skillLevels = [skill: 11]
+        let low = engine.evaluate(plain)
+        let high = engine.evaluate(trained)
+        XCTAssertEqual(low.skillLevelMultiplier, 1, accuracy: 0.0001)
+        XCTAssertEqual(high.skillLevelMultiplier, 1.2, accuracy: 0.0001)
+        XCTAssertGreaterThan(high.exp, low.exp)
+        XCTAssertGreaterThan(high.gold, low.gold)
+    }
+
+    func testMatchingStatAcceleratesSkillXP() {
+        let skill = UUID()
+        var plain = context(shares: [SkillShare(skillID: skill, expShare: 1)])
+        plain.skillAffinities = [skill: [StatAffinity(stat: .mind, weight: 1)]]
+        plain.statLevels = [.mind: 1]
+        var boosted = plain
+        boosted.statLevels = [.mind: 11]
+        let low = engine.evaluate(plain)
+        let high = engine.evaluate(boosted)
+        XCTAssertEqual(low.exp, high.exp)
+        XCTAssertGreaterThan(high.skillEXP[skill] ?? 0, low.skillEXP[skill] ?? 0)
+    }
 }

@@ -4,29 +4,28 @@ import SwiftUI
 /// 主线 / 支线是对 `Quest` 的过滤，重复是 `QuestTemplate` 列表，挑战是解锁规则的进度。
 struct QuestCenterView: View {
     @Environment(GameStore.self) private var store
-    @Environment(\.palette) private var palette
 
     private enum Tab: String, CaseIterable, Identifiable {
         case main, side, repeating, challenge
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .main: return "主线"
-            case .side: return "支线"
-            case .repeating: return "重复"
-            case .challenge: return "挑战"
+            case .main: return L10n.t("quest.kind.main")
+            case .side: return L10n.t("quest.kind.side")
+            case .repeating: return L10n.t("quest.kind.repeating")
+            case .challenge: return L10n.t("quest.challenge")
             }
         }
     }
 
     @State private var tab: Tab = .main
-    @State private var isPresentingEditor = false
+    @State private var publishLaunch: QuestPublishLaunch?
     @State private var isPresentingRepeat = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("视角", selection: $tab) {
+                Picker(L10n.t("quest.view"), selection: $tab) {
                     ForEach(Tab.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
@@ -35,15 +34,15 @@ struct QuestCenterView: View {
 
                 Group {
                     switch tab {
-                    case .main: questList(kinds: [.main, .repeating], emptyHint: "主线来自提前规划")
-                    case .side: questList(kinds: [.side], emptyHint: "支线是当天临时添加的任务")
+                    case .main: questList(kinds: [.main, .repeating], emptyHint: L10n.t("quest.empty.main"))
+                    case .side: questList(kinds: [.side], emptyHint: L10n.t("quest.empty.side"))
                     case .repeating: repeatList
                     case .challenge: ChallengeListView()
                     }
                 }
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("任务中心")
+            .navigationTitle(L10n.t("quest.center"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -51,7 +50,9 @@ struct QuestCenterView: View {
                         if tab == .repeating {
                             isPresentingRepeat = true
                         } else {
-                            isPresentingEditor = true
+                            publishLaunch = QuestPublishLaunch(
+                                boardKind: tab == .side ? .side : .main
+                            )
                         }
                     } label: {
                         Image(systemName: "plus")
@@ -59,11 +60,8 @@ struct QuestCenterView: View {
                     .disabled(tab == .challenge)
                 }
             }
-            .sheet(isPresented: $isPresentingEditor) {
-                QuestEditorView(
-                    quest: nil,
-                    defaultDay: tab == .side ? store.today : store.container.calendar.adding(days: 1, to: store.today)
-                )
+            .sheet(item: $publishLaunch) { launch in
+                QuestPublishWizardView(initialBoardKind: launch.boardKind)
             }
             .sheet(isPresented: $isPresentingRepeat) {
                 RepeatTemplateEditorView()
@@ -75,7 +73,7 @@ struct QuestCenterView: View {
         let grouped = groupedQuests(kinds: kinds)
         return List {
             if grouped.isEmpty {
-                EmptyStateView(icon: "tray", title: "还没有任务", message: emptyHint)
+                EmptyStateView(icon: "tray", title: L10n.t("quest.empty"), message: emptyHint)
                     .listRowBackground(Color.clear)
             }
             ForEach(grouped, id: \.day) { group in
@@ -104,9 +102,9 @@ struct QuestCenterView: View {
             if templates.isEmpty {
                 EmptyStateView(
                     icon: "repeat",
-                    title: "还没有重复任务",
-                    message: "每天阅读、每周健身三次、每月总结，都可以在这里设置。",
-                    actionTitle: "创建周期任务",
+                    title: L10n.t("quest.empty.repeat"),
+                    message: L10n.t("quest.empty.repeat.message"),
+                    actionTitle: L10n.t("quest.empty.repeat.action"),
                     action: { isPresentingRepeat = true }
                 )
                 .listRowBackground(Color.clear)
@@ -122,17 +120,17 @@ struct QuestCenterView: View {
                             StatPill(icon: "flame.fill", text: "\(template.streakCurrent)", tint: .orange)
                         }
                         if !template.isActive {
-                            StatPill(icon: "pause.fill", text: "已暂停", tint: .secondary)
+                            StatPill(icon: "pause.fill", text: L10n.t("common.paused"), tint: .secondary)
                         }
                     }
                 }
                 .swipeActions {
-                    Button(template.isActive ? "暂停" : "启用") {
+                    Button(template.isActive ? L10n.t("common.pause") : L10n.t("common.enable")) {
                         template.isActive.toggle()
                         store.save()
                         store.refresh()
                     }
-                    Button("删除", role: .destructive) {
+                    Button(L10n.t("common.delete"), role: .destructive) {
                         store.deleteTemplate(template)
                     }
                 }
@@ -145,6 +143,8 @@ struct QuestCenterView: View {
         var days = [store.today]
         days.append(contentsOf: store.upcomingQuests().map(\.scheduledDay))
         days.append(contentsOf: store.overdueQuests.map(\.scheduledDay))
+        days.append(contentsOf: store.spanningQuests.map(\.scheduledDay))
+        days.append(contentsOf: store.todayCompletedQuests.map(\.scheduledDay))
 
         let unique = Array(Set(days)).sorted()
         return unique.compactMap { day in
@@ -155,9 +155,9 @@ struct QuestCenterView: View {
 
     private func sectionTitle(for day: GameDay) -> String {
         let calendar = store.container.calendar
-        if day == store.today { return "今天" }
-        if day == calendar.adding(days: 1, to: store.today) { return "明天" }
-        if day < store.today { return "\(day.shortLabel)（已过期）" }
+        if day == store.today { return L10n.t("common.today") }
+        if day == calendar.adding(days: 1, to: store.today) { return L10n.t("common.tomorrow") }
+        if day < store.today { return L10n.format("quest.today_expired", day.shortLabel) }
         return day.shortLabel
     }
 }
