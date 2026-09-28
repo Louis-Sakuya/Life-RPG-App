@@ -108,6 +108,20 @@ final class ConfigTests: XCTestCase {
         }
     }
 
+    /// 任务成就必须覆盖前两周最需要的档位，否则早期多巴胺只剩升级选择页
+    func testQuestAchievementLadderCoversEarlyGame() {
+        let thresholds = Set(
+            config.unlocks.rules(of: .achievement).flatMap { rule in
+                rule.conditions
+                    .filter { $0.metric == MetricKey.totalQuestsCompleted }
+                    .map { Int($0.threshold) }
+            }
+        )
+        for needed in [1, 10, 25, 50, 100] {
+            XCTAssertTrue(thresholds.contains(needed), "任务成就缺少 \(needed) 档")
+        }
+    }
+
     func testEveryUnlockMetricIsKnown() {
         let known: Set<String> = [
             MetricKey.totalQuestsCompleted, MetricKey.totalMainQuestsCompleted,
@@ -117,6 +131,8 @@ final class ConfigTests: XCTestCase {
             MetricKey.totalEXPEarned, MetricKey.totalGoldEarned, MetricKey.totalDays,
             MetricKey.perfectDays, MetricKey.earliestCompletionHour, MetricKey.latestCompletionHour,
             MetricKey.achievementsUnlocked, MetricKey.challengesCompleted,
+            MetricKey.recurringSeriesFinished, MetricKey.longestRecurringSeriesDays,
+            MetricKey.recurringJourneys,
             MetricKey.skillLevel, MetricKey.habitStreak
         ]
         for rule in config.unlocks.rules {
@@ -144,6 +160,25 @@ final class ConfigTests: XCTestCase {
     func testEveryThemeHasPalette() {
         for item in config.shop.items(of: .theme) {
             XCTAssertNotNil(item.accentHex, "主题 \(item.id) 缺少 accent 颜色")
+            XCTAssertFalse(item.atmosphereID.isEmpty, "主题 \(item.id) 缺少 atmosphere")
+        }
+    }
+
+    func testCosmeticItemsDeclareHowTheyLook() {
+        for item in config.shop.items(of: .avatarFrame) {
+            XCTAssertFalse(item.styleID.isEmpty, "头像框 \(item.id) 缺少 style")
+        }
+        for item in config.shop.items(of: .background) {
+            XCTAssertFalse(item.styleID.isEmpty, "背景 \(item.id) 缺少 style")
+        }
+        for item in config.shop.items(of: .pet) {
+            XCTAssertFalse(item.styleID.isEmpty, "宠物 \(item.id) 缺少 style")
+        }
+        for item in config.shop.items(of: .effect) {
+            XCTAssertFalse(item.cueID.isEmpty, "特效 \(item.id) 缺少 cue")
+        }
+        for item in config.shop.items(of: .sound) {
+            XCTAssertFalse(item.packID.isEmpty, "音效 \(item.id) 缺少 pack")
         }
     }
 

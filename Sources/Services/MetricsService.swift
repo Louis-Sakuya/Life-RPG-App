@@ -50,6 +50,11 @@ struct MetricsService {
         }
 
         let unlocks = progression.allUnlocks()
+        snapshot.scalars[MetricKey.recurringSeriesFinished] = Double(player.totalRecurringSeriesFinished)
+        snapshot.scalars[MetricKey.longestRecurringSeriesDays] = Double(player.longestRecurringSeriesDays)
+        snapshot.scalars[MetricKey.recurringJourneys] = Double(
+            QuestRepository(context: context).allTemplates().reduce(0) { $0 + $1.completedJourneys }
+        )
         snapshot.scalars[MetricKey.achievementsUnlocked] = Double(unlocks.filter { $0.kind == .achievement }.count)
         snapshot.scalars[MetricKey.challengesCompleted] = Double(
             progression.allChallenges(includeArchived: true).filter(\.isCompleted).count

@@ -10,6 +10,7 @@ enum RewardSourceKind: String, Codable, CaseIterable, Sendable {
     case streakBonus
     case purchase
     case manual
+    case recurringFinish
 }
 
 /// 奖励流水账。所有 EXP / Gold 的变动都必须先落一条流水。

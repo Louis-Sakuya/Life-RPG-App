@@ -26,6 +26,13 @@ final class GameStore {
     private(set) var languageCode: String = AppLanguage.system.rawValue
     /// 还没走完首次冒险者设定时，主界面让位给初始化流程。
     private(set) var needsOnboarding = true
+    /// 当前主标签。新手引导期间用来把玩家带到成长页。
+    var selectedTab = 0
+    private(set) var tutorialStep: TutorialStep?
+    var tutorialOpenPublish = false
+    var tutorialForceHabitsTab = false
+    var tutorialOpenHabitEditor = false
+    var tutorialHabitReadyForDone = false
 
     /// 待选择的玩家升级额外奖励。金币已经发放，这里只处理属性点或技能栏位。
     var pendingLevelUpChoices: [LevelUpEvent] = []
@@ -34,6 +41,12 @@ final class GameStore {
     var pendingLevelUps: [LevelUpEvent] = []
     var pendingUnlocks: [UnlockRule] = []
     var pendingFortunes: [FortuneEvent] = []
+    /// 当天第一次打开时弹出的失败任务清单
+    var pendingFailedQuests: [FailedQuestSnapshot] = []
+    var completeFXToken: UUID?
+    var levelFXToken: UUID?
+    var rewardPopup: RewardPopupEvent?
+    var rowSparkSourceID: UUID?
 
     private var hasBootstrapped = false
 
@@ -60,6 +73,7 @@ final class GameStore {
             save()
         } else {
             runDayCycle()
+            syncNotifications()
         }
     }
 
@@ -67,13 +81,23 @@ final class GameStore {
     func onForeground() {
         guard !needsOnboarding else { return }
         runDayCycle()
-        // 通知采用全量重建，回到前台时重排一次即可覆盖"任务改期""习惯删除"等所有变化
+        // 未打开提醒从这次打开重新计时；任务截止提醒也一并按当前待办重排
+        syncNotifications()
+    }
+
+    /// 进入后台时把未打开提醒的计时点定在离开这一刻。
+    func onBackground() {
+        save()
+        guard !needsOnboarding else { return }
         syncNotifications()
     }
 
     private func runDayCycle() {
         today = container.calendar.today
-        container.dayCycle.runIfNeeded(player: player, settings: settings)
+        let report = container.dayCycle.runIfNeeded(player: player, settings: settings)
+        if report.isFirstLaunchOfDay, !report.newlyFailed.isEmpty {
+            pendingFailedQuests = report.newlyFailed
+        }
         evaluateUnlocks()
         refresh()
         save()
@@ -101,6 +125,11 @@ final class GameStore {
             }
             return true
         }
+        for quest in todayQuests where quest.isOverdue && !quest.isCompleted {
+            if !overdueQuests.contains(where: { $0.id == quest.id }) {
+                overdueQuests.append(quest)
+            }
+        }
         spanningQuests = unfinished.filter { quest in
             guard let dueAt = quest.dueAt else { return false }
             return container.calendar.gameDay(for: dueAt) >= today
@@ -108,10 +137,19 @@ final class GameStore {
         habits = habitRepo.allHabits()
         skills = skillRepo.allSkills()
         todayRecord = recordRepo.record(on: today)
+        container.shop.normalizeEquipment(player)
         palette = container.shop.palette(for: player)
 
         collectLevelUps()
         collectFortunes()
+        catchUpTutorial()
+    }
+
+    private func catchUpTutorial() {
+        guard isTutorialActive, let step = tutorialStep else { return }
+        if hasAnyHabit, [.goGrowth, .pickHabits, .tapAddHabit, .fillHabit].contains(step) {
+            advanceTutorial(to: .done)
+        }
     }
 
     func save() {
@@ -132,12 +170,12 @@ final class GameStore {
         todayQuests.filter { $0.kind == .side }
     }
 
-    /// 工会任务栏上的主线：今天的主线 / 重复实例，以及仍在截止日期内的跨日委托。
+    /// 工会任务栏上的主线：今天的主线 / 重复实例，仍在截止日期内的跨日委托，以及逾期未结的主线。
     /// 当天完成的任务留在栏上划掉并沉底，不从列表里拿掉。
     var guildMainQuests: [Quest] {
         mergedBoard(
             primary: mainQuests,
-            extra: spanningQuests.filter { $0.kind != .side },
+            extra: boardExtras.filter { $0.kind != .side },
             completedToday: todayCompletedQuests.filter { $0.kind != .side }
         )
     }
@@ -145,10 +183,29 @@ final class GameStore {
     var guildSideQuests: [Quest] {
         mergedBoard(
             primary: sideQuests,
-            extra: spanningQuests.filter { $0.kind == .side },
+            extra: boardExtras.filter { $0.kind == .side },
             completedToday: todayCompletedQuests.filter { $0.kind == .side }
         )
     }
+
+    /// 全部任务子面板：主线与支线按优先度排在同一栏。
+    var guildAllQuests: [Quest] {
+        mergedBoard(
+            primary: todayQuests,
+            extra: boardExtras,
+            completedToday: todayCompletedQuests
+        )
+    }
+
+    private var boardExtras: [Quest] {
+        spanningQuests + overdueQuests
+    }
+
+    var todayHabitCompletedCount: Int {
+        habits.filter { habitProgress($0) >= max(1, $0.dailyTarget) }.count
+    }
+
+    var todayHabitTotalCount: Int { habits.count }
 
     private func mergedBoard(primary: [Quest], extra: [Quest], completedToday: [Quest]) -> [Quest] {
         var seen = Set<UUID>()
@@ -178,6 +235,27 @@ final class GameStore {
         guard let id = player.currentTitleID else { return nil }
         return container.config.unlocks.rule(id: id)?.localizedName
     }
+
+    var equippedBackgroundStyle: String? {
+        guard !player.currentBackgroundID.isEmpty,
+              let item = container.config.shop.item(id: player.currentBackgroundID),
+              item.kind == .background else { return nil }
+        return item.styleID
+    }
+
+    var equippedPet: ShopItem? {
+        guard !player.currentPetID.isEmpty else { return nil }
+        return container.config.shop.item(id: player.currentPetID)
+    }
+
+    var equippedFrame: ShopItem? {
+        guard let id = player.currentFrameID else { return nil }
+        return container.config.shop.item(id: id)
+    }
+
+    var hasClassicSFX: Bool { player.currentSoundID == "sfx_classic" }
+    var hasCompleteSpark: Bool { player.currentCompleteEffectID == "fx_complete_spark" }
+    var hasLevelBurst: Bool { player.currentLevelEffectID == "fx_levelup_burst" }
 
     func skillProgress(_ skill: Skill) -> LevelProgress {
         container.config.skillCurve.progress(totalEXP: skill.totalEXP)
@@ -264,7 +342,9 @@ final class GameStore {
             skillShares: skillShares,
             preferredKind: preferredKind
         )
+        noteQuestCreated(kind: preferredKind)
         commit()
+        syncNotifications()
     }
 
     func updateQuest(
@@ -292,22 +372,30 @@ final class GameStore {
             skillShares: skillShares
         )
         commit()
+        syncNotifications()
     }
 
     func toggleQuest(_ quest: Quest) {
-        container.quests.toggleCompletion(quest, player: player)
+        let completing = !quest.isCompleted
+        let result = container.quests.toggleCompletion(quest, player: player)
         evaluateUnlocks()
+        if completing, let result {
+            presentCompletionFeedback(sourceID: quest.id, exp: result.exp, gold: result.gold)
+        }
         commit()
+        syncNotifications()
     }
 
     func reschedule(_ quest: Quest, to day: GameDay) {
         container.quests.reschedule(quest, to: day)
         commit()
+        syncNotifications()
     }
 
     func deleteQuest(_ quest: Quest) {
         container.quests.delete(quest, player: player)
         commit()
+        syncNotifications()
     }
 
     func quests(on day: GameDay) -> [Quest] {
@@ -321,14 +409,23 @@ final class GameStore {
     // MARK: - 习惯
 
     func toggleHabit(_ habit: Habit) {
-        container.habits.toggle(habit, player: player, on: today)
+        let result = container.habits.toggle(habit, player: player, on: today)
         evaluateUnlocks()
+        if let result {
+            presentCompletionFeedback(sourceID: habit.id, exp: result.exp, gold: result.gold)
+        }
         commit()
     }
 
     func checkInHabit(_ habit: Habit) {
-        container.habits.checkIn(habit, player: player, on: today)
+        let result = container.habits.checkIn(habit, player: player, on: today)
         evaluateUnlocks()
+        if let result {
+            presentCompletionFeedback(sourceID: habit.id, exp: result.exp, gold: result.gold)
+        } else {
+            GameHaptics.soft()
+            playCue(.checkIn)
+        }
         commit()
     }
 
@@ -355,6 +452,7 @@ final class GameStore {
             reminderMinute: reminderMinute,
             skillShares: skillShares
         )
+        noteHabitCreated()
         commit()
     }
 
@@ -428,6 +526,10 @@ final class GameStore {
 
     func templates() -> [QuestTemplate] {
         QuestRepository(context: container.context).allTemplates()
+            .sorted { lhs, rhs in
+                if lhs.isFinished != rhs.isFinished { return !lhs.isFinished }
+                return lhs.createdAt < rhs.createdAt
+            }
     }
 
     func createTemplate(
@@ -441,8 +543,10 @@ final class GameStore {
         skillShares: [SkillShare],
         tags: [String] = [],
         startDay: GameDay? = nil,
-        endDay: GameDay? = nil
+        endDay: GameDay? = nil,
+        maxCompletionsPerDay: Int = 1
     ) {
+        let start = startDay ?? today
         let template = QuestTemplate(
             title: title,
             detail: detail,
@@ -452,17 +556,105 @@ final class GameStore {
             estimatedMinutes: estimatedMinutes,
             recurrence: recurrence,
             startPolicy: startPolicy,
-            startDay: startDay ?? today
+            startDay: start
         )
+        let anchor = ScheduleEngine.effectiveStartDay(
+            rule: recurrence,
+            startDay: start,
+            policy: startPolicy,
+            calendar: container.calendar
+        )
+        template.maxCompletionsPerDay = max(1, maxCompletionsPerDay)
+        template.periodStart = anchor
+        template.cycleOrigin = anchor
         template.endDay = endDay
         template.skillShares = skillShares
         QuestRepository(context: container.context).insert(template)
+        noteQuestCreated(kind: .repeating)
         runDayCycle()
     }
 
     func deleteTemplate(_ template: QuestTemplate) {
         QuestRepository(context: container.context).delete(template)
         commit()
+    }
+
+    func previewFinishTemplate(_ template: QuestTemplate) -> RecurringFinishReward {
+        container.quests.previewFinish(template)
+    }
+
+    func finishTemplate(_ template: QuestTemplate) {
+        guard let reward = container.quests.finishTemplate(template, player: player) else { return }
+        evaluateUnlocks()
+        presentCompletionFeedback(sourceID: template.id, exp: reward.exp, gold: reward.gold)
+        commit()
+        syncNotifications()
+    }
+
+    func template(id: UUID) -> QuestTemplate? {
+        QuestRepository(context: container.context).template(id: id)
+    }
+
+    func failedQuestRecords() -> [FailedQuestRecord] {
+        QuestRepository(context: container.context).allFailedRecords()
+    }
+
+    func repeatingProgress(for quest: Quest) -> (remaining: Int, dailyLeft: Int, isGrace: Bool)? {
+        guard let templateID = quest.templateID,
+              let template = QuestRepository(context: container.context).template(id: templateID) else {
+            return nil
+        }
+        let paused = player.pausedDaySet
+        let calendar = container.calendar
+        let anchor = ScheduleEngine.effectiveStartDay(
+            rule: template.recurrence,
+            startDay: template.startDay,
+            policy: template.startPolicy,
+            calendar: calendar
+        )
+        let quotaStart = template.periodState == .grace ? template.cycleOrigin : template.periodStart
+        let quota = RecurringPeriodEngine.periodQuota(
+            rule: template.recurrence,
+            maxPerDay: template.maxCompletionsPerDay,
+            periodStart: quotaStart,
+            anchor: anchor,
+            calendar: calendar,
+            pausedDayValues: paused
+        )
+        let windowEnd = RecurringPeriodEngine.lastDayOfWindow(
+            start: template.periodStart,
+            calendar: calendar,
+            pausedDayValues: paused
+        )
+        let repo = QuestRepository(context: container.context)
+        let completed = repo.completedCount(templateID: template.id, from: quotaStart, through: max(windowEnd, today))
+        let remaining = RecurringPeriodEngine.remaining(quota: quota, completed: completed)
+        let doneToday = repo.completedCount(templateID: template.id, on: today)
+        let dailyLeft = max(0, max(1, template.maxCompletionsPerDay) - doneToday)
+        return (remaining, dailyLeft, template.periodState == .grace)
+    }
+
+    func isTodayPaused() -> Bool {
+        player.isPaused(today)
+    }
+
+    func useLeaveCard(on day: GameDay) -> Bool {
+        guard player.leaveCardCount > 0 else { return false }
+        guard day >= today else { return false }
+        guard !player.isPaused(day) else { return false }
+        player.leaveCardCount -= 1
+        player.pause(day)
+        commit()
+        return true
+    }
+
+    func dismissFailedQuestAlert() {
+        pendingFailedQuests = []
+    }
+
+    func dismissStreakShieldAlert() {
+        player.pendingStreakShieldAlert = false
+        save()
     }
 
     // MARK: - 成长
@@ -531,7 +723,11 @@ final class GameStore {
     func purchase(_ item: ShopItem) -> PurchaseError? {
         do {
             try container.shop.purchase(item, player: player, sandbox: isTestShopSandboxEnabled)
+            playCue(.purchase)
             commit()
+            if item.kind == .consumable {
+                syncNotifications()
+            }
             return nil
         } catch let error as PurchaseError {
             return error
@@ -546,6 +742,12 @@ final class GameStore {
     }
 
     // MARK: - 设置
+
+    func updateAvatar(symbol: String, imageData: Data?) {
+        player.avatarSymbol = symbol.isEmpty ? Player.defaultAvatarSymbol : symbol
+        player.avatarImageData = imageData
+        commit()
+    }
 
     func updateDayStartHour(_ hour: Int) {
         settings.dayStartHour = hour
@@ -566,20 +768,34 @@ final class GameStore {
     }
 
     func syncNotifications() {
-        let quests = QuestRepository(context: container.context).upcomingQuests(after: today)
-        let habits = HabitRepository(context: container.context).allHabits()
+        let dueQuests: [NotificationPlanner.DueQuest] = QuestRepository(context: container.context)
+            .pendingQuests()
+            .compactMap { quest in
+                guard let dueAt = quest.dueAt else { return nil }
+                return NotificationPlanner.DueQuest(id: quest.id, title: quest.title, dueAt: dueAt)
+            }
         let settings = self.settings
         Task {
             await container.notifications.refreshAuthorizationStatus()
-            await container.notifications.sync(habits: habits, quests: quests, settings: settings)
+            await container.notifications.sync(
+                dueQuests: dueQuests,
+                settings: settings
+            )
         }
     }
 
     // MARK: - 初始化 / 注销
 
-    func completeOnboarding(nickname: String, skills: [OnboardingSkillDraft]) {
+    func completeOnboarding(
+        nickname: String,
+        avatarSymbol: String = Player.defaultAvatarSymbol,
+        avatarImageData: Data? = nil,
+        skills: [OnboardingSkillDraft]
+    ) {
         let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         player.nickname = trimmed.isEmpty ? Player.defaultNickname : trimmed
+        player.avatarSymbol = avatarSymbol.isEmpty ? Player.defaultAvatarSymbol : avatarSymbol
+        player.avatarImageData = avatarImageData
         player.skillSlotCap = max(1, container.config.balance.initialSkillSlots)
 
         let repository = SkillRepository(context: container.context)
@@ -598,20 +814,38 @@ final class GameStore {
 
         settings.hasCompletedOnboarding = true
         needsOnboarding = false
+        startTutorial()
         runDayCycle()
         syncNotifications()
     }
 
-    /// 清空当前存档并回到初始化流程。内置挑战会在播种时重新对账。
+    /// 清空当前存档。测试里就地重建；真机先退出，下次启动再清档，避免界面读到已删除的模型。
     func resetAccount() throws {
-        try container.export.resetSave()
         pendingLevelUps = []
         pendingLevelUpChoices = []
         skillSlotFollowUp = nil
         pendingUnlocks = []
         pendingFortunes = []
+        pendingFailedQuests = []
+        todayQuests = []
+        todayCompletedQuests = []
+        overdueQuests = []
+        spanningQuests = []
+        habits = []
+        skills = []
+        todayRecord = nil
+        tutorialStep = nil
+        tutorialOpenPublish = false
+        tutorialForceHabitsTab = false
+        tutorialOpenHabitEditor = false
+        tutorialHabitReadyForDone = false
+        completeFXToken = nil
+        levelFXToken = nil
+        rewardPopup = nil
+        rowSparkSourceID = nil
         _ = container.rewards.consumeLevelUps()
         _ = container.lucky.consumeEvents()
+        try container.export.resetSave()
         container.bootstrap()
         reloadIdentities()
         refresh()
@@ -621,13 +855,172 @@ final class GameStore {
         }
     }
 
+    func requestAccountReset() {
+        ExportService.markPendingResetAndTerminate()
+    }
+
     /// 备份恢复后重新挂上身份、补齐内置挑战，并跳过初始化流程。
     func reloadAfterRestore() {
         container.bootstrap()
         reloadIdentities()
         settings.hasCompletedOnboarding = true
+        settings.hasCompletedTutorial = true
+        settings.tutorialStepRaw = ""
         needsOnboarding = false
+        tutorialStep = nil
         runDayCycle()
+    }
+
+    // MARK: - 新手引导
+
+    var isTutorialActive: Bool {
+        tutorialStep != nil && !settings.hasCompletedTutorial
+    }
+
+    func selectTab(_ tab: Int) {
+        guard isTutorialActive else {
+            selectedTab = tab
+            return
+        }
+        switch tutorialStep {
+        case .goGrowth where tab == 1:
+            selectedTab = 1
+            advanceTutorial(to: .pickHabits)
+        case .pickHabits, .tapAddHabit, .fillHabit, .done:
+            if tab == 1 { selectedTab = 1 }
+        default:
+            if tab == 0 { selectedTab = 0 }
+        }
+    }
+
+    func performTutorialPrimary() {
+        switch tutorialStep {
+        case .welcome:
+            advanceTutorial(to: .tapPublishMain)
+        case .done:
+            completeTutorial()
+        default:
+            break
+        }
+    }
+
+    func performTutorialHighlightAction() {
+        switch tutorialStep {
+        case .tapPublishMain:
+            tutorialOpenPublish = true
+            advanceTutorial(to: .pickMain)
+        case .tapPublishSide:
+            tutorialOpenPublish = true
+            advanceTutorial(to: .pickSide)
+        case .pickMain:
+            advanceTutorial(to: .pickUrgent)
+        case .pickUrgent:
+            advanceTutorial(to: .fillMain)
+        case .pickSide:
+            advanceTutorial(to: .fillSide)
+        case .goGrowth:
+            selectedTab = 1
+            advanceTutorial(to: .pickHabits)
+        case .pickHabits:
+            selectedTab = 1
+            tutorialForceHabitsTab = true
+            advanceTutorial(to: .tapAddHabit)
+        case .tapAddHabit:
+            tutorialOpenHabitEditor = true
+            advanceTutorial(to: .fillHabit)
+        default:
+            break
+        }
+    }
+
+    private func startTutorial() {
+        settings.hasCompletedTutorial = false
+        selectedTab = 0
+        advanceTutorial(to: .welcome)
+    }
+
+    private func restoreTutorial() {
+        if settings.hasCompletedTutorial {
+            tutorialStep = nil
+            return
+        }
+        guard let stored = TutorialStep(rawValue: settings.tutorialStepRaw) else {
+            tutorialStep = nil
+            return
+        }
+        var entry = stored.resumeEntry
+        if hasAnyHabit, [.goGrowth, .pickHabits, .tapAddHabit, .fillHabit].contains(entry) {
+            entry = .done
+        }
+        tutorialStep = entry
+        settings.tutorialStepRaw = entry.rawValue
+        if entry == .goGrowth {
+            selectedTab = 0
+        }
+    }
+
+    private var hasAnyHabit: Bool {
+        !habits.isEmpty || !HabitRepository(context: container.context).allHabits().isEmpty
+    }
+
+    private func advanceTutorial(to step: TutorialStep) {
+        var next = step
+        if hasAnyHabit, [.goGrowth, .pickHabits, .tapAddHabit, .fillHabit].contains(step) {
+            next = .done
+        }
+        tutorialStep = next
+        settings.tutorialStepRaw = next.rawValue
+        if next != .done {
+            settings.hasCompletedTutorial = false
+        }
+        save()
+    }
+
+    private func completeTutorial() {
+        tutorialStep = nil
+        settings.tutorialStepRaw = ""
+        settings.hasCompletedTutorial = true
+        save()
+    }
+
+    private func noteQuestCreated(kind: QuestKind?) {
+        guard isTutorialActive else { return }
+        if tutorialStep == .fillMain, kind == .main || kind == .repeating || kind == nil {
+            advanceTutorial(to: .tapPublishSide)
+        } else if tutorialStep == .fillSide, kind == .side {
+            advanceTutorial(to: .goGrowth)
+            selectedTab = 0
+        }
+    }
+
+    private func noteHabitCreated() {
+        guard isTutorialActive else { return }
+        switch tutorialStep {
+        case .goGrowth, .pickHabits, .tapAddHabit, .fillHabit:
+            tutorialOpenHabitEditor = false
+            tutorialHabitReadyForDone = false
+            selectedTab = 1
+            advanceTutorial(to: .done)
+        default:
+            break
+        }
+    }
+
+    func completeTutorialHabitIfNeeded() {
+        guard isTutorialActive else { return }
+        guard tutorialStep == .fillHabit || tutorialHabitReadyForDone else { return }
+        tutorialHabitReadyForDone = false
+        selectedTab = 1
+        if hasAnyHabit {
+            advanceTutorial(to: .done)
+        }
+    }
+
+    func noteHabitEditorPresented() {
+        guard isTutorialActive else { return }
+        if tutorialStep == .pickHabits || tutorialStep == .tapAddHabit {
+            advanceTutorial(to: .fillHabit)
+        }
     }
 
     // MARK: - 内部
@@ -638,6 +1031,7 @@ final class GameStore {
         settings = repository.settings()
         applyLanguage(settings.language)
         needsOnboarding = !settings.hasCompletedOnboarding
+        restoreTutorial()
         restoreUnclaimedLevelUpChoicesIfNeeded()
     }
 
@@ -690,6 +1084,9 @@ final class GameStore {
             } else {
                 pendingLevelUps.append(event)
             }
+            playCue(.levelUp)
+            GameHaptics.success()
+            fireLevelFX()
         }
         restoreUnclaimedLevelUpChoicesIfNeeded()
     }
@@ -698,6 +1095,50 @@ final class GameStore {
         let events = container.lucky.consumeEvents()
         if !events.isEmpty {
             pendingFortunes.append(contentsOf: events)
+        }
+    }
+
+    private func presentCompletionFeedback(sourceID: UUID, exp: Int, gold: Int) {
+        GameHaptics.light()
+        playCue(.complete)
+        let popup = RewardPopupEvent(sourceID: sourceID, exp: exp, gold: gold)
+        rewardPopup = popup
+        rowSparkSourceID = sourceID
+        if hasCompleteSpark {
+            fireCompleteFX()
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(520))
+            if rowSparkSourceID == sourceID {
+                rowSparkSourceID = nil
+            }
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(1250))
+            if rewardPopup?.id == popup.id {
+                rewardPopup = nil
+            }
+        }
+    }
+
+    private func playCue(_ cue: SoundCue) {
+        guard hasClassicSFX else { return }
+        SoundService.shared.play(cue)
+    }
+
+    private func fireCompleteFX() {
+        completeFXToken = UUID()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(1100))
+            completeFXToken = nil
+        }
+    }
+
+    private func fireLevelFX() {
+        levelFXToken = UUID()
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(1300))
+            levelFXToken = nil
         }
     }
 }

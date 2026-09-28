@@ -25,7 +25,7 @@ struct StatBoardView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(.clear)
     }
 }
 

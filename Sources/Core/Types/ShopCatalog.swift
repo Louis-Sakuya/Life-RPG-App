@@ -1,6 +1,7 @@
 import Foundation
 
 enum ShopItemKind: String, Codable, CaseIterable, Sendable {
+    case consumable
     case theme
     case avatarFrame
     case background
@@ -16,12 +17,18 @@ enum ShopItemKind: String, Codable, CaseIterable, Sendable {
         case .effect: return "sparkles"
         case .sound: return "speaker.wave.2.fill"
         case .pet: return "pawprint.fill"
+        case .consumable: return "seal.fill"
         }
     }
 }
 
-/// 商店商品全部是纯装饰，不携带任何影响数值的字段。这是刻意的约束：
-/// 金币经济一旦能买到数值，任务奖励的平衡就会被绕过。
+enum ShopItemID {
+    static let leaveWard = "consumable_ward"
+    static let streakShield = "consumable_shield"
+}
+
+/// 商店以装饰品为主。消耗品（请假卡 / 保险卡）是明确的功能例外，
+/// 只改变日程时钟或连胜保护，不直接加减任务经验。
 struct ShopItem: Codable, Hashable, Identifiable, Sendable {
     var id: String
     var kind: ShopItemKind
@@ -70,6 +77,10 @@ struct ShopItem: Codable, Hashable, Identifiable, Sendable {
 
     var accentHex: String? { payload["accent"] }
     var secondaryHex: String? { payload["secondary"] }
+    var atmosphereID: String { payload["atmosphere"] ?? "default" }
+    var styleID: String { payload["style"] ?? "" }
+    var cueID: String { payload["cue"] ?? "" }
+    var packID: String { payload["pack"] ?? "" }
 }
 
 struct ShopCatalog: Codable, Sendable {

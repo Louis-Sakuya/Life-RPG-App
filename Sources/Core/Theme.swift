@@ -35,26 +35,62 @@ extension Color {
     }
 }
 
+enum ThemeAtmosphere: String, Equatable, Sendable {
+    case `default`
+    case forest
+    case ember
+    case midnight
+    case sakura
+    case gold
+}
+
 /// 当前生效的配色。主题是商店商品，因此调色板来自 `shop_items.json` 的 payload，
 /// 新增主题不需要改任何代码。
 struct ThemePalette: Equatable {
     var accent: Color
     var secondary: Color
+    var atmosphere: ThemeAtmosphere
+    var themeID: String
 
-    static let `default` = ThemePalette(accent: Color(hex: "#5B8DEF"), secondary: Color(hex: "#8E7CFF"))
+    static let `default` = ThemePalette(
+        accent: Color(hex: "#5B8DEF"),
+        secondary: Color(hex: "#8E7CFF"),
+        atmosphere: .default,
+        themeID: "theme_default"
+    )
 
-    init(accent: Color, secondary: Color) {
+    init(accent: Color, secondary: Color, atmosphere: ThemeAtmosphere = .default, themeID: String = "theme_default") {
         self.accent = accent
         self.secondary = secondary
+        self.atmosphere = atmosphere
+        self.themeID = themeID
     }
 
     init(item: ShopItem?) {
-        self.accent = Color(hex: item?.accentHex ?? "#5B8DEF")
-        self.secondary = Color(hex: item?.secondaryHex ?? "#8E7CFF")
+        let resolved = item?.kind == .theme ? item : nil
+        self.accent = Color(hex: resolved?.accentHex ?? "#5B8DEF")
+        self.secondary = Color(hex: resolved?.secondaryHex ?? "#8E7CFF")
+        self.atmosphere = ThemeAtmosphere(rawValue: resolved?.atmosphereID ?? "default") ?? .default
+        self.themeID = resolved?.id ?? "theme_default"
     }
 
     var gradient: LinearGradient {
         LinearGradient(colors: [accent, secondary], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    var ornateColors: [Color] {
+        switch atmosphere {
+        case .gold:
+            return [Color(hex: "#F0CE6A"), accent, Color(hex: "#8A6A12")]
+        case .ember:
+            return [secondary.opacity(0.95), accent, Color(hex: "#7A2E18")]
+        default:
+            return [Color(hex: "#E8D5A3"), accent.opacity(0.85), Color(hex: "#C9A227").opacity(0.7)]
+        }
+    }
+
+    var plateFillOpacity: Double {
+        atmosphere == .gold ? 0.22 : 0.16
     }
 }
 

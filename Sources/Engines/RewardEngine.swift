@@ -11,6 +11,8 @@ struct RewardContext: Sendable {
     var completedDay: GameDay
     var dueAt: Date?
     var completedAt: Date
+    /// 周期任务进入延期周后，即使当天完成也按延期结算
+    var forceOverdue: Bool
     /// 同一重复序列的连续完成次数
     var consecutiveStreak: Int
     /// 全局连续天数（登录连续），决定 streakMultiplier
@@ -33,6 +35,7 @@ struct RewardContext: Sendable {
         completedDay: GameDay,
         dueAt: Date? = nil,
         completedAt: Date = Date(),
+        forceOverdue: Bool = false,
         consecutiveStreak: Int = 0,
         globalStreakDays: Int = 0,
         skillShares: [SkillShare] = [],
@@ -49,6 +52,7 @@ struct RewardContext: Sendable {
         self.completedDay = completedDay
         self.dueAt = dueAt
         self.completedAt = completedAt
+        self.forceOverdue = forceOverdue
         self.consecutiveStreak = consecutiveStreak
         self.globalStreakDays = globalStreakDays
         self.skillShares = skillShares
@@ -112,7 +116,7 @@ struct RewardResult: Sendable {
 
 /// 奖励引擎。
 ///
-/// 关键设计：加成按 `group` 互斥。`planned_ahead(+20%)` 与 `same_day(-50%)` 描述的是
+/// 关键设计：加成按 `group` 互斥。`planned_ahead(+20%)` 与 `same_day(-20%)` 描述的是
 /// 同一个维度，同时生效在语义上矛盾；分组保证任何时刻每个维度只有一条加成落地。
 /// 组内若意外命中多条，取绝对值最大的一条（惩罚优先），保证行为可预测。
 struct RewardEngine: Sendable {
@@ -253,7 +257,9 @@ struct RewardEngine: Sendable {
 
         ids.append(context.isPlannedAhead ? ModifierID.plannedAhead : ModifierID.sameDay)
 
-        if let dueAt = context.dueAt {
+        if context.forceOverdue {
+            ids.append(ModifierID.overdue)
+        } else if let dueAt = context.dueAt {
             ids.append(context.completedAt <= dueAt ? ModifierID.onTime : ModifierID.overdue)
         } else if context.completedDay > context.scheduledDay {
             ids.append(ModifierID.overdue)

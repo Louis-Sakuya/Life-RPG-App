@@ -8,6 +8,8 @@ struct DayCycleReport: Sendable {
     var carriedOver: Int = 0
     var loginStreak: Int = 0
     var isFirstLaunchOfDay: Bool = false
+    var newlyFailed: [FailedQuestSnapshot] = []
+    var streakShieldTriggered: Bool = false
 }
 
 /// 每日结算。启动与回到前台时各跑一次。
@@ -19,8 +21,6 @@ struct DayCycleReport: Sendable {
 final class DayCycleService {
     /// 补算上限。用户手动改系统时间可能造成极端跨度，这里兜底避免长时间卡住启动。
     private static let maxCatchUpDays = 400
-    /// 重复任务的最大回溯生成窗口。长期未打开应用时不应该被几十条过期任务淹没。
-    private static let templateLookbackDays = 7
 
     private let context: ModelContext
     private let calendar: GameCalendar
@@ -54,9 +54,12 @@ final class DayCycleService {
 
         // 连续与生成逻辑本身是幂等的，因此每次启动都跑一遍，
         // 这样"今天新建了一个重复模板"也能立刻看到今天的实例。
+        let paused = player.pausedDaySet
+        report.streakShieldTriggered = applyStreakShieldIfNeeded(player: player, today: today)
         decayBrokenStreaks(player: player, today: today)
-        report.generatedQuests += generateTemplateQuests(through: today)
-        report.markedOverdue = markOverdueQuests(before: today)
+        settleAndGenerate(through: today, paused: paused, report: &report)
+        report.markedOverdue = markOverdueQuests(before: today, paused: paused)
+        report.newlyFailed.append(contentsOf: failExpiredSingles(on: today, paused: paused))
         advanceLoginStreak(player: player, on: today)
         aggregates.refresh(day: today)
 
@@ -102,10 +105,13 @@ final class DayCycleService {
     }
 
     private func carryOverUnfinished(from day: GameDay, to target: GameDay) -> Int {
-        let pending = quests.quests(on: day).filter { $0.status == .pending }
+        let pending = quests.quests(on: day).filter { $0.status == .pending && $0.templateID == nil }
         for quest in pending {
             quest.scheduledDay = target
             quest.isOverdue = true
+            if quest.overdueSinceDay == nil {
+                quest.overdueSinceDay = target
+            }
         }
         if !pending.isEmpty {
             aggregates.refresh(day: day)
@@ -114,78 +120,236 @@ final class DayCycleService {
         return pending.count
     }
 
-    // MARK: - 重复任务生成
+    // MARK: - 周期窗口与实例
 
-    @discardableResult
-    private func generateTemplateQuests(through today: GameDay) -> Int {
-        var generated = 0
-        let earliestAllowed = calendar.adding(days: -Self.templateLookbackDays, to: today)
-
+    private func settleAndGenerate(through today: GameDay, paused: Set<Int>, report: inout DayCycleReport) {
         for template in quests.activeTemplates() {
+            if template.isFinished { continue }
             if let endDay = template.endDay, endDay < today { continue }
-
-            let anchor = ScheduleEngine.effectiveStartDay(
-                rule: template.recurrence,
-                startDay: template.startDay,
-                policy: template.startPolicy,
-                calendar: calendar
-            )
-
-            var start = anchor
-            if let lastGenerated = template.lastGeneratedDay {
-                start = max(start, calendar.adding(days: 1, to: lastGenerated))
+            bootstrapPeriod(template)
+            settleWindows(template, on: today, paused: paused, report: &report)
+            if !paused.contains(today.value),
+               quests.ensurePendingRepeating(
+                   template: template,
+                   on: today,
+                   calendar: calendar,
+                   pausedDayValues: paused
+               ) != nil {
+                report.generatedQuests += 1
+                aggregates.refresh(day: today)
             }
-            start = max(start, earliestAllowed)
-            guard start <= today else { continue }
-
-            let days = ScheduleEngine.occurrences(
-                rule: template.recurrence,
-                in: start...today,
-                anchor: anchor,
-                calendar: calendar
-            )
-
-            for day in days {
-                if let endDay = template.endDay, day > endDay { continue }
-                guard !quests.hasGeneratedQuest(templateID: template.id, on: day) else { continue }
-                let quest = Quest(
-                    title: template.title,
-                    detail: template.detail,
-                    kind: .repeating,
-                    difficulty: template.difficulty,
-                    priority: template.priority,
-                    tags: template.tags,
-                    estimatedMinutes: template.estimatedMinutes,
-                    createdDay: day,
-                    scheduledDay: day,
-                    templateID: template.id
-                )
-                quests.insert(quest, skillShares: template.skillShares)
-                aggregates.refresh(day: day)
-                generated += 1
-            }
-
             template.lastGeneratedDay = today
         }
-        return generated
     }
 
-    // MARK: - 延期标记
+    private func bootstrapPeriod(_ template: QuestTemplate) {
+        let anchor = ScheduleEngine.effectiveStartDay(
+            rule: template.recurrence,
+            startDay: template.startDay,
+            policy: template.startPolicy,
+            calendar: calendar
+        )
+        if template.periodStartDayValue == 0 {
+            template.periodStart = anchor
+        }
+        if template.cycleOriginDayValue == 0 {
+            template.cycleOrigin = template.periodStart
+        }
+    }
+
+    private func settleWindows(
+        _ template: QuestTemplate,
+        on day: GameDay,
+        paused: Set<Int>,
+        report: inout DayCycleReport
+    ) {
+        var steps = 0
+        while RecurringPeriodEngine.windowHasEnded(
+            start: template.periodStart,
+            on: day,
+            calendar: calendar,
+            pausedDayValues: paused
+        ), steps < 60 {
+            closeWindow(template, on: day, paused: paused, report: &report)
+            steps += 1
+        }
+    }
+
+    private func closeWindow(
+        _ template: QuestTemplate,
+        on day: GameDay,
+        paused: Set<Int>,
+        report: inout DayCycleReport
+    ) {
+        let anchor = ScheduleEngine.effectiveStartDay(
+            rule: template.recurrence,
+            startDay: template.startDay,
+            policy: template.startPolicy,
+            calendar: calendar
+        )
+        let quotaStart = template.periodState == .grace ? template.cycleOrigin : template.periodStart
+        let windowEnd = RecurringPeriodEngine.lastDayOfWindow(
+            start: template.periodStart,
+            calendar: calendar,
+            pausedDayValues: paused
+        )
+        let quota = RecurringPeriodEngine.periodQuota(
+            rule: template.recurrence,
+            maxPerDay: template.maxCompletionsPerDay,
+            periodStart: quotaStart,
+            anchor: anchor,
+            calendar: calendar,
+            pausedDayValues: paused
+        )
+        let completed = quests.completedCount(
+            templateID: template.id,
+            from: quotaStart,
+            through: windowEnd
+        )
+        let nextStart = calendar.adding(days: 1, to: windowEnd)
+        let met = quota == 0 || completed >= quota
+        if met, quota > 0, completed >= quota {
+            template.completedJourneys += 1
+        }
+
+        if template.periodState == .active {
+            if met {
+                beginPeriod(template, on: nextStart, state: .active)
+            } else {
+                beginPeriod(template, on: nextStart, state: .grace, keepOrigin: true)
+                markTemplatePendingOverdue(template, since: nextStart)
+            }
+        } else if met {
+            beginPeriod(template, on: nextStart, state: .active)
+        } else {
+            failTemplatePeriod(
+                template,
+                start: quotaStart,
+                end: windowEnd,
+                completed: completed,
+                quota: max(1, quota),
+                on: day,
+                report: &report
+            )
+            beginPeriod(template, on: nextStart, state: .active)
+        }
+    }
+
+    private func beginPeriod(
+        _ template: QuestTemplate,
+        on start: GameDay,
+        state: RecurringPeriodState,
+        keepOrigin: Bool = false
+    ) {
+        template.periodStart = start
+        template.periodState = state
+        if !keepOrigin {
+            template.cycleOrigin = start
+        }
+    }
+
+    private func markTemplatePendingOverdue(_ template: QuestTemplate, since day: GameDay) {
+        for quest in quests.pendingRepeating(templateID: template.id) {
+            quest.isOverdue = true
+            if quest.overdueSinceDay == nil {
+                quest.overdueSinceDay = day
+            }
+        }
+    }
+
+    private func failTemplatePeriod(
+        _ template: QuestTemplate,
+        start: GameDay,
+        end: GameDay,
+        completed: Int,
+        quota: Int,
+        on day: GameDay,
+        report: inout DayCycleReport
+    ) {
+        let record = FailedQuestRecord(
+            title: template.title,
+            detail: template.detail,
+            kind: .repeating,
+            scheduledStart: start,
+            scheduledEnd: end,
+            failedDay: day,
+            progressDone: completed,
+            progressTarget: quota,
+            templateID: template.id
+        )
+        quests.insert(record)
+        report.newlyFailed.append(FailedQuestSnapshot(record))
+        for quest in quests.pendingRepeating(templateID: template.id) {
+            quest.status = .cancelled
+            aggregates.refresh(day: quest.scheduledDay)
+        }
+    }
+
+    // MARK: - 延期与单项失败
 
     @discardableResult
-    private func markOverdueQuests(before day: GameDay) -> Int {
+    private func markOverdueQuests(before day: GameDay, paused: Set<Int>) -> Int {
+        if paused.contains(day.value) { return 0 }
         let stale = quests.unfinishedQuests(before: day)
+        var marked = 0
         for quest in stale where !quest.isOverdue {
+            if quest.templateID != nil { continue }
             // 跨多日的长期委托以截止日为准，开始日过了但还没到截止日不算逾期
             if let dueAt = quest.dueAt, calendar.gameDay(for: dueAt) >= day {
                 continue
             }
             quest.isOverdue = true
+            if quest.overdueSinceDay == nil {
+                quest.overdueSinceDay = day
+            }
+            marked += 1
         }
-        return stale.count
+        return marked
+    }
+
+    private func failExpiredSingles(on today: GameDay, paused: Set<Int>) -> [FailedQuestSnapshot] {
+        if paused.contains(today.value) { return [] }
+        var failed: [FailedQuestSnapshot] = []
+        for quest in quests.pendingQuests() where quest.templateID == nil {
+            let dueDay = quest.dueAt.map { calendar.gameDay(for: $0) }
+            guard RecurringPeriodEngine.shouldFailSingle(
+                scheduledDay: quest.scheduledDay,
+                dueDay: dueDay,
+                today: today,
+                calendar: calendar,
+                pausedDayValues: paused
+            ) else { continue }
+
+            let record = FailedQuestRecord(
+                title: quest.title,
+                detail: quest.detail,
+                kind: quest.kind,
+                scheduledStart: quest.scheduledDay,
+                scheduledEnd: dueDay ?? quest.scheduledDay,
+                failedDay: today,
+                progressDone: 0,
+                progressTarget: 1,
+                originalQuestID: quest.id
+            )
+            quests.insert(record)
+            quest.status = .cancelled
+            aggregates.refresh(day: quest.scheduledDay)
+            failed.append(FailedQuestSnapshot(record))
+        }
+        return failed
     }
 
     // MARK: - 连续
+
+    private func applyStreakShieldIfNeeded(player: Player, today: GameDay) -> Bool {
+        guard player.hasStreakShield else { return false }
+        let (protected, triggered) = StreakEngine.applyShield(player.loginStreak, today: today, calendar: calendar)
+        guard triggered else { return false }
+        player.loginStreak = protected
+        player.hasStreakShield = false
+        player.pendingStreakShieldAlert = true
+        return true
+    }
 
     private func advanceLoginStreak(player: Player, on day: GameDay) {
         player.loginStreak = StreakEngine.advance(player.loginStreak, on: day, calendar: calendar)

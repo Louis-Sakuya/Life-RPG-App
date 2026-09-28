@@ -33,7 +33,7 @@ struct LifeRPGApp: App {
                     if phase == .active {
                         store.onForeground()
                     } else {
-                        store.save()
+                        store.onBackground()
                     }
                 }
         }

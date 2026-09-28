@@ -13,7 +13,7 @@ struct QuestRepository {
     func quests(on day: GameDay) -> [Quest] {
         let value = day.value
         let descriptor = FetchDescriptor<Quest>(
-            predicate: #Predicate { $0.scheduledDayValue == value && $0.statusRaw != "cancelled" },
+            predicate: #Predicate { $0.scheduledDayValue == value && $0.statusRaw != "cancelled" && $0.statusRaw != "failed" },
             sortBy: [SortDescriptor(\.sortOrder), SortDescriptor(\.createdAt)]
         )
         let fetched = (try? context.fetch(descriptor)) ?? []
@@ -58,6 +58,14 @@ struct QuestRepository {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    func pendingQuests() -> [Quest] {
+        let descriptor = FetchDescriptor<Quest>(
+            predicate: #Predicate { $0.statusRaw == "pending" },
+            sortBy: [SortDescriptor(\.scheduledDayValue)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
     func quest(id: UUID) -> Quest? {
         let descriptor = FetchDescriptor<Quest>(predicate: #Predicate { $0.id == id })
         return (try? context.fetch(descriptor))?.first
@@ -77,6 +85,121 @@ struct QuestRepository {
             predicate: #Predicate { $0.templateID == target && $0.scheduledDayValue == value }
         )
         return ((try? context.fetch(descriptor))?.isEmpty == false)
+    }
+
+    func pendingRepeating(templateID: UUID) -> [Quest] {
+        let target: UUID? = templateID
+        let descriptor = FetchDescriptor<Quest>(
+            predicate: #Predicate { $0.templateID == target && $0.statusRaw == "pending" }
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    func completedCount(templateID: UUID, from start: GameDay, through end: GameDay) -> Int {
+        let target: UUID? = templateID
+        let lower = start.value
+        let upper = end.value
+        let descriptor = FetchDescriptor<Quest>(
+            predicate: #Predicate {
+                $0.templateID == target
+                    && $0.statusRaw == "completed"
+                    && $0.completedDayValue >= lower
+                    && $0.completedDayValue <= upper
+            }
+        )
+        return ((try? context.fetch(descriptor)) ?? []).count
+    }
+
+    func completedCount(templateID: UUID, on day: GameDay) -> Int {
+        completedCount(templateID: templateID, from: day, through: day)
+    }
+
+    func completedCount(templateID: UUID) -> Int {
+        let target: UUID? = templateID
+        let descriptor = FetchDescriptor<Quest>(
+            predicate: #Predicate { $0.templateID == target && $0.statusRaw == "completed" }
+        )
+        return ((try? context.fetch(descriptor)) ?? []).count
+    }
+
+    func allFailedRecords() -> [FailedQuestRecord] {
+        let descriptor = FetchDescriptor<FailedQuestRecord>(
+            sortBy: [SortDescriptor(\.failedDayValue, order: .reverse), SortDescriptor(\.failedAt, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    @discardableResult
+    func insert(_ record: FailedQuestRecord) -> FailedQuestRecord {
+        context.insert(record)
+        return record
+    }
+
+    /// 周期内只挂一条待完成实例。完成一次后由调用方再调一次补上。
+    @discardableResult
+    func ensurePendingRepeating(
+        template: QuestTemplate,
+        on day: GameDay,
+        calendar: GameCalendar,
+        pausedDayValues: Set<Int>
+    ) -> Quest? {
+        if template.isFinished { return nil }
+        if let endDay = template.endDay, day > endDay { return nil }
+        let existing = pendingRepeating(templateID: template.id)
+        if let pending = existing.first { return pending }
+
+        let anchor = ScheduleEngine.effectiveStartDay(
+            rule: template.recurrence,
+            startDay: template.startDay,
+            policy: template.startPolicy,
+            calendar: calendar
+        )
+        let quotaStart = template.periodState == .grace ? template.cycleOrigin : template.periodStart
+        let quota = RecurringPeriodEngine.periodQuota(
+            rule: template.recurrence,
+            maxPerDay: template.maxCompletionsPerDay,
+            periodStart: quotaStart,
+            anchor: anchor,
+            calendar: calendar,
+            pausedDayValues: pausedDayValues
+        )
+        let windowEnd = RecurringPeriodEngine.lastDayOfWindow(
+            start: template.periodStart,
+            calendar: calendar,
+            pausedDayValues: pausedDayValues
+        )
+        let completed = completedCount(templateID: template.id, from: quotaStart, through: max(windowEnd, day))
+        let remaining = RecurringPeriodEngine.remaining(quota: quota, completed: completed)
+        let completedToday = completedCount(templateID: template.id, on: day)
+        guard RecurringPeriodEngine.canComplete(
+            on: day,
+            rule: template.recurrence,
+            anchor: anchor,
+            calendar: calendar,
+            state: template.periodState,
+            remaining: remaining,
+            completedToday: completedToday,
+            maxPerDay: template.maxCompletionsPerDay,
+            pausedDayValues: pausedDayValues
+        ) else { return nil }
+
+        let quest = Quest(
+            title: template.title,
+            detail: template.detail,
+            kind: .repeating,
+            difficulty: template.difficulty,
+            priority: template.priority,
+            tags: template.tags,
+            estimatedMinutes: template.estimatedMinutes,
+            createdDay: day,
+            scheduledDay: day,
+            templateID: template.id
+        )
+        if template.periodState == .grace {
+            quest.isOverdue = true
+            quest.overdueSinceDay = template.periodStart
+        }
+        return insert(quest, skillShares: template.skillShares)
     }
 
     // MARK: - 写入

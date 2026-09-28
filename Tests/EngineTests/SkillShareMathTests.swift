@@ -41,4 +41,24 @@ final class SkillShareMathTests: XCTestCase {
         XCTAssertEqual(SkillShareMath.snap(1.4), 1)
         XCTAssertEqual(SkillShareMath.snap(-0.2), 0)
     }
+
+    func testSingleSkillTakesFullShare() {
+        let id = UUID()
+        XCTAssertEqual(SkillShareMath.single(id), [id: 1])
+        XCTAssertTrue(SkillShareMath.single(nil).isEmpty)
+        XCTAssertEqual(SkillShareMath.single(id).asSkillShares.first?.expShare, 1)
+    }
+
+    func testSelectedSkillsSplitEvenly() {
+        let a = UUID()
+        let b = UUID()
+        let shares = SkillShareMath.selected([a, b])
+        XCTAssertEqual(shares[a], 0.5)
+        XCTAssertEqual(shares[b], 0.5)
+        XCTAssertTrue(SkillShareMath.isFullAllocation(shares))
+    }
+
+    func testSelectedNoneYieldsEmptyShares() {
+        XCTAssertTrue(SkillShareMath.selected([]).isEmpty)
+    }
 }

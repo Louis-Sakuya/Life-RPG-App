@@ -21,6 +21,9 @@ enum MetricKey {
     static let latestCompletionHour = "latestCompletionHour"
     static let achievementsUnlocked = "achievementsUnlocked"
     static let challengesCompleted = "challengesCompleted"
+    static let recurringSeriesFinished = "recurringSeriesFinished"
+    static let longestRecurringSeriesDays = "longestRecurringSeriesDays"
+    static let recurringJourneys = "recurringJourneys"
 
     /// 需要 `param` 指定技能名
     static let skillLevel = "skillLevel"

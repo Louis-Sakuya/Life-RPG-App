@@ -44,7 +44,7 @@ struct GameCalendar: Sendable {
     /// 把日期选择器的日历日还原成 `GameDay`。
     ///
     /// `DatePicker(.date)` 给出的是当天午夜。若误用 `gameDay(for:)`，会按 `dayStartHour`
-    /// 把 21 号 00:00 算成 20 号，紧急任务会被当成「当天临时」吃 -50%。
+    /// 把 21 号 00:00 算成 20 号，单次任务会被当成「当天临时」吃 -20%。
     func gameDay(fromDisplayDate date: Date) -> GameDay {
         let comps = calendar.dateComponents([.year, .month, .day], from: date)
         return GameDay(year: comps.year ?? 1970, month: comps.month ?? 1, day: comps.day ?? 1)

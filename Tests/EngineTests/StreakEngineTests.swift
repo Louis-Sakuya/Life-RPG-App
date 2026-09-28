@@ -85,6 +85,33 @@ final class StreakEngineTests: XCTestCase {
         XCTAssertEqual(reverted.current, 2)
     }
 
+    func testShieldFillsOneMissedDay() {
+        var state = StreakEngine.advance(.empty, on: day1, calendar: calendar)
+        state = StreakEngine.advance(state, on: day2, calendar: calendar)
+        let (protected, triggered) = StreakEngine.applyShield(state, today: day10, calendar: calendar)
+        XCTAssertTrue(triggered)
+        XCTAssertEqual(protected.current, 2)
+        XCTAssertEqual(protected.lastDay, day3)
+    }
+
+    func testShieldDoesNothingWhenStreakIsStillAlive() {
+        let state = StreakEngine.advance(.empty, on: day1, calendar: calendar)
+        let (same, triggered) = StreakEngine.applyShield(state, today: day2, calendar: calendar)
+        XCTAssertFalse(triggered)
+        XCTAssertEqual(same.current, 1)
+        XCTAssertEqual(same.lastDay, day1)
+    }
+
+    func testShieldThenDecayStillBreaksIfGapRemains() {
+        var state = StreakEngine.advance(.empty, on: day1, calendar: calendar)
+        state = StreakEngine.advance(state, on: day2, calendar: calendar)
+        let (protected, triggered) = StreakEngine.applyShield(state, today: day10, calendar: calendar)
+        XCTAssertTrue(triggered)
+        let decayed = StreakEngine.decayIfBroken(protected, today: day10, calendar: calendar)
+        XCTAssertEqual(decayed.current, 0)
+        XCTAssertEqual(decayed.best, 2)
+    }
+
     func testNextTierPointsAtTheUpcomingGoal() {
         let tiers = BalanceConfig.fallback.streakTiers
         XCTAssertEqual(StreakEngine.nextTier(forDays: 0, tiers: tiers)?.days, 7)

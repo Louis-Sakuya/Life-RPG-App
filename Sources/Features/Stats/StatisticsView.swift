@@ -22,7 +22,7 @@ struct StatisticsView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
             }
-            .background(Color(.systemGroupedBackground))
+            .background { AtmosphereCanvas() }
             .navigationTitle(L10n.t("stats.title"))
             .navigationBarTitleDisplayMode(.inline)
         }

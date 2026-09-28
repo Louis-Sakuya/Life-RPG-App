@@ -8,8 +8,15 @@ struct HomeView: View {
 
     @State private var publishLaunch: QuestPublishLaunch?
     @State private var isPresentingCalendar = false
+    @State private var boardFilter: GuildBoardFilter = .all
 
     private var goldTint: Color { Color(hex: "#D4A017") }
+
+    private enum GuildBoardFilter: String, CaseIterable, Identifiable {
+        case all, main, side
+        var id: String { rawValue }
+        var title: String { L10n.t("home.filter.\(rawValue)") }
+    }
 
     var body: some View {
         NavigationStack {
@@ -21,19 +28,14 @@ struct HomeView: View {
                         luckyDayBanner(fortune)
                     }
 
-                    if !store.overdueQuests.isEmpty {
-                        overdueSection
-                    }
-
                     guildBoard
 
                     habitSection
-                    todayStatsSection
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
             }
-            .background(Color(.systemGroupedBackground))
+            .background { AtmosphereCanvas() }
             .navigationTitle(L10n.t("home.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -52,12 +54,30 @@ struct HomeView: View {
                     }
                 }
             }
+            .overlay(alignment: .bottomTrailing) {
+                if let pet = store.equippedPet {
+                    CompanionPetView(
+                        name: pet.localizedName,
+                        accent: Color(hex: pet.accentHex ?? "#7BC96F"),
+                        style: pet.styleID
+                    )
+                    .padding(.trailing, 18)
+                    .padding(.bottom, 10)
+                }
+            }
             .sheet(item: $publishLaunch) { launch in
                 QuestPublishWizardView(initialBoardKind: launch.boardKind)
+                    .interactiveDismissDisabled(store.isTutorialActive)
             }
             .sheet(isPresented: $isPresentingCalendar) {
                 PlanningView()
             }
+            .onChange(of: store.tutorialOpenPublish) { _, open in
+                guard open else { return }
+                store.tutorialOpenPublish = false
+                publishLaunch = QuestPublishLaunch()
+            }
+            .tutorialCoach(host: .home)
             .refreshable {
                 store.onForeground()
             }
@@ -69,56 +89,29 @@ struct HomeView: View {
     private var guildBoard: some View {
         VStack(alignment: .leading, spacing: 14) {
             guildHeader
-
-            guildLane(
-                title: L10n.t("home.main.title"),
-                subtitle: L10n.t("home.main.subtitle"),
-                icon: "flag.fill",
-                tint: palette.accent,
-                quests: store.guildMainQuests,
-                emptyTitle: L10n.t("home.main.empty.title"),
-                emptyMessage: L10n.t("home.main.empty.message"),
-                emptyAction: L10n.t("home.main.empty.action"),
-                emptyKind: .main
-            )
-
-            Divider().opacity(0.35)
-
-            guildLane(
-                title: L10n.t("home.side.title"),
-                subtitle: L10n.t("home.side.subtitle"),
-                icon: "bolt.fill",
-                tint: .orange,
-                quests: store.guildSideQuests,
-                emptyTitle: L10n.t("home.side.empty.title"),
-                emptyMessage: L10n.t("home.side.empty.message"),
-                emptyAction: L10n.t("home.side.empty.action"),
-                emptyKind: .side
-            )
+            guildProgress
+            guildCounts
+            guildRewards
+            guildFilter
+            guildQuestPanel
+                .animation(.easeInOut(duration: 0.2), value: boardFilter)
         }
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [goldTint.opacity(0.55), palette.accent.opacity(0.35)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.4
-                        )
+                    OrnateBorder(
+                        cornerRadius: 20,
+                        colors: [goldTint, palette.accent.opacity(0.7), goldTint.opacity(0.55)],
+                        lineWidth: 1.6
+                    )
                 )
         )
     }
 
     private var guildHeader: some View {
-        let board = store.guildMainQuests + store.guildSideQuests
-        let done = board.filter(\.isCompleted).count
-
-        return HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(goldTint.opacity(0.18))
@@ -138,54 +131,142 @@ struct HomeView: View {
 
             Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 6) {
-                Button {
-                    publishLaunch = QuestPublishLaunch()
-                } label: {
-                    Label(L10n.t("home.publish"), systemImage: "plus")
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule().fill(palette.accent.opacity(0.16))
-                        )
-                }
-                .buttonStyle(.plain)
-
-                if !board.isEmpty {
-                    Text(L10n.format("home.progress", done, board.count))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+            Button {
+                publishLaunch = QuestPublishLaunch(boardKind: publishKind(for: boardFilter))
+            } label: {
+                Label(L10n.t("home.publish"), systemImage: "plus")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule().fill(palette.accent.opacity(0.16))
+                    )
             }
+            .buttonStyle(.plain)
+            .tutorialAnchor(.homePublish)
         }
     }
 
-    private func guildLane(
-        title: String,
-        subtitle: String,
-        icon: String,
-        tint: Color,
+    private var guildProgress: some View {
+        let board = store.guildAllQuests
+        let done = board.filter(\.isCompleted).count
+        let total = board.count
+        let rate = total == 0 ? 0.0 : Double(done) / Double(total)
+
+        return HStack(spacing: 10) {
+            ProgressBar(value: rate, gradient: palette.gradient, height: 8)
+            Text(L10n.format("home.progress", done, total))
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .fixedSize()
+        }
+    }
+
+    private var guildCounts: some View {
+        HStack(spacing: 8) {
+            countTile(
+                title: L10n.t("home.count.main"),
+                done: store.guildMainQuests.filter(\.isCompleted).count,
+                total: store.guildMainQuests.count,
+                tint: palette.accent,
+                icon: "flag.fill"
+            ) {
+                boardFilter = .main
+            }
+            countTile(
+                title: L10n.t("home.count.side"),
+                done: store.guildSideQuests.filter(\.isCompleted).count,
+                total: store.guildSideQuests.count,
+                tint: .orange,
+                icon: "bolt.fill"
+            ) {
+                boardFilter = .side
+            }
+            countTile(
+                title: L10n.t("home.count.habits"),
+                done: store.todayHabitCompletedCount,
+                total: store.todayHabitTotalCount,
+                tint: .teal,
+                icon: "repeat.circle.fill"
+            )
+        }
+    }
+
+    private var guildRewards: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "gift.fill")
+                .foregroundStyle(goldTint)
+            Text(L10n.t("home.reward.today"))
+                .font(.subheadline.weight(.medium))
+            Spacer(minLength: 8)
+            Text("+\(store.todayEXP) EXP")
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(palette.accent)
+            Text("+\(store.todayGold) G")
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(goldTint)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(goldTint.opacity(0.10))
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(L10n.format("home.reward.summary", store.todayEXP, store.todayGold))
+    }
+
+    private var guildFilter: some View {
+        Picker(L10n.t("home.board_today"), selection: $boardFilter) {
+            ForEach(GuildBoardFilter.allCases) { filter in
+                Text(filter.title).tag(filter)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+
+    @ViewBuilder
+    private var guildQuestPanel: some View {
+        switch boardFilter {
+        case .all:
+            questSubpanel(
+                quests: store.guildAllQuests,
+                tint: goldTint,
+                emptyTitle: L10n.t("home.empty.all.title"),
+                emptyMessage: L10n.t("home.empty.all.message"),
+                emptyAction: L10n.t("home.empty.all.action"),
+                emptyKind: nil
+            )
+        case .main:
+            questSubpanel(
+                quests: store.guildMainQuests,
+                tint: palette.accent,
+                emptyTitle: L10n.t("home.main.empty.title"),
+                emptyMessage: L10n.t("home.main.empty.message"),
+                emptyAction: L10n.t("home.main.empty.action"),
+                emptyKind: .main
+            )
+        case .side:
+            questSubpanel(
+                quests: store.guildSideQuests,
+                tint: .orange,
+                emptyTitle: L10n.t("home.side.empty.title"),
+                emptyMessage: L10n.t("home.side.empty.message"),
+                emptyAction: L10n.t("home.side.empty.action"),
+                emptyKind: .side
+            )
+        }
+    }
+
+    private func questSubpanel(
         quests: [Quest],
+        tint: Color,
         emptyTitle: String,
         emptyMessage: String,
         emptyAction: String,
-        emptyKind: QuestPublishWizardView.BoardKind
+        emptyKind: QuestPublishWizardView.BoardKind?
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .foregroundStyle(tint)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                        .font(.subheadline.weight(.semibold))
-                    Text(subtitle)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-
             if quests.isEmpty {
                 VStack(spacing: 8) {
                     Text(emptyTitle)
@@ -213,7 +294,7 @@ struct HomeView: View {
                     } label: {
                         HStack(spacing: 0) {
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(tint)
+                                .fill(kindTint(for: quest))
                                 .frame(width: 3)
                                 .padding(.vertical, 6)
                             QuestRowView(quest: quest)
@@ -221,8 +302,73 @@ struct HomeView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        if quest.isOverdue && !quest.isCompleted {
+                            Button(L10n.t("quest.move_today")) {
+                                store.reschedule(quest, to: store.today)
+                            }
+                        }
+                        Button(L10n.t("common.delete"), role: .destructive) {
+                            store.deleteQuest(quest)
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    private func countTile(
+        title: String,
+        done: Int,
+        total: Int,
+        tint: Color,
+        icon: String,
+        action: (() -> Void)? = nil
+    ) -> some View {
+        let content = VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                Text(title)
+                    .font(.caption2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(tint)
+            Text(L10n.format("home.count.fraction", done, total))
+                .font(.headline.monospacedDigit())
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(tint.opacity(0.10))
+        )
+
+        return Group {
+            if let action {
+                Button(action: action) { content }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+            } else {
+                content
+            }
+        }
+    }
+
+    private func kindTint(for quest: Quest) -> Color {
+        switch quest.kind {
+        case .main: return palette.accent
+        case .side: return .orange
+        case .repeating: return .teal
+        }
+    }
+
+    private func publishKind(for filter: GuildBoardFilter) -> QuestPublishWizardView.BoardKind? {
+        switch filter {
+        case .all: return nil
+        case .main: return .main
+        case .side: return .side
         }
     }
 
@@ -258,25 +404,6 @@ struct HomeView: View {
         )
     }
 
-    private var overdueSection: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionHeader(L10n.t("home.overdue.title"), subtitle: L10n.t("home.overdue.subtitle"))
-                ForEach(store.overdueQuests.prefix(5)) { quest in
-                    QuestRowView(quest: quest)
-                        .contextMenu {
-                            Button(L10n.t("quest.move_today")) {
-                                store.reschedule(quest, to: store.today)
-                            }
-                            Button(L10n.t("common.delete"), role: .destructive) {
-                                store.deleteQuest(quest)
-                            }
-                        }
-                }
-            }
-        }
-    }
-
     private var habitSection: some View {
         Card {
             VStack(alignment: .leading, spacing: 10) {
@@ -295,55 +422,5 @@ struct HomeView: View {
                 }
             }
         }
-    }
-
-    private var todayStatsSection: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeader(L10n.t("home.report"))
-
-                HStack(spacing: 12) {
-                    statTile(
-                        title: L10n.t("home.completion"),
-                        value: "\(Int(store.todayCompletionRate * 100))%",
-                        icon: "chart.pie.fill",
-                        tint: palette.accent
-                    )
-                    statTile(
-                        title: L10n.t("home.today_exp"),
-                        value: "+\(store.todayEXP)",
-                        icon: "sparkles",
-                        tint: palette.secondary
-                    )
-                    statTile(
-                        title: L10n.t("home.today_gold"),
-                        value: "+\(store.todayGold)",
-                        icon: "dollarsign.circle.fill",
-                        tint: goldTint
-                    )
-                }
-
-                ProgressBar(value: store.todayCompletionRate, gradient: palette.gradient, height: 8)
-            }
-        }
-    }
-
-    private func statTile(title: String, value: String, icon: String, tint: Color) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(tint)
-            Text(value)
-                .font(.headline)
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(tint.opacity(0.10))
-        )
     }
 }

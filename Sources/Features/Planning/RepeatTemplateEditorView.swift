@@ -6,31 +6,29 @@ struct RepeatTemplateEditorView: View {
 
     @State private var title = ""
     @State private var detail = ""
-    @State private var difficulty: QuestDifficulty = .normal
-    @State private var priority: QuestPriority = .normal
     @State private var estimatedMinutes = 30
+    @State private var priority: QuestPriority = .normal
     @State private var mode: RecurrenceMode = .daily
     @State private var dailyInterval = 1
     @State private var weekdays: Set<Int> = [2, 4, 6]
     @State private var timesPerWeek = 3
     @State private var monthDays: Set<Int> = [1]
     @State private var startPolicy: RecurrenceStartPolicy = .thisPeriod
-    @State private var shares: [UUID: Double] = [:]
+    @State private var maxCompletionsPerDay = 1
+    @State private var selectedSkillIDs: Set<UUID> = []
 
     var body: some View {
         NavigationStack {
             Form {
-                Section(L10n.t("common.basic")) {
+                Section {
                     TextField(L10n.t("quest.title_placeholder"), text: $title)
                     TextField(L10n.t("quest.detail_placeholder"), text: $detail, axis: .vertical)
                         .lineLimit(1...3)
-                    Picker(L10n.t("common.difficulty"), selection: $difficulty) {
-                        ForEach(QuestDifficulty.allCases) { Text($0.title).tag($0) }
-                    }
-                    Picker(L10n.t("common.priority"), selection: $priority) {
-                        ForEach(QuestPriority.allCases) { Text($0.title).tag($0) }
-                    }
-                    Stepper(L10n.format("quest.estimated_stepper", estimatedMinutes), value: $estimatedMinutes, in: 5...600, step: 5)
+                    QuestChallengeFields(estimatedMinutes: $estimatedMinutes, priority: $priority)
+                } header: {
+                    Text(L10n.t("common.basic"))
+                } footer: {
+                    Text(L10n.t("quest.difficulty.auto_footer"))
                 }
 
                 RecurrenceEditor(
@@ -39,11 +37,16 @@ struct RepeatTemplateEditorView: View {
                     weekdays: $weekdays,
                     timesPerWeek: $timesPerWeek,
                     monthDays: $monthDays,
-                    startPolicy: $startPolicy
+                    startPolicy: $startPolicy,
+                    maxCompletionsPerDay: $maxCompletionsPerDay
                 )
 
-                Section(L10n.t("quest.skill_share")) {
-                    SkillShareEditor(skills: store.skills, shares: $shares, requiresFullAllocation: true)
+                Section {
+                    SkillPickList(skills: store.skills, selectedIDs: $selectedSkillIDs)
+                } header: {
+                    Text(L10n.t("wizard.skill_header"))
+                } footer: {
+                    Text(L10n.t("wizard.skill_footer"))
                 }
 
                 Section {
@@ -73,12 +76,7 @@ struct RepeatTemplateEditorView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.t("common.save"), action: save)
-                        .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || (!store.skills.isEmpty && !SkillShareMath.isFullAllocation(shares)))
-                }
-            }
-            .onAppear {
-                if shares.isEmpty {
-                    shares = SkillShareMath.equalShares(ids: store.skills.map(\.id))
+                        .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
         }
@@ -88,7 +86,7 @@ struct RepeatTemplateEditorView: View {
         store.createTemplate(
             title: title,
             detail: detail,
-            difficulty: difficulty,
+            difficulty: .fromEstimatedMinutes(estimatedMinutes),
             priority: priority,
             estimatedMinutes: estimatedMinutes,
             recurrence: RecurrenceEditor.rule(
@@ -99,7 +97,8 @@ struct RepeatTemplateEditorView: View {
                 monthDays: monthDays
             ),
             startPolicy: startPolicy,
-            skillShares: shares.asSkillShares
+            skillShares: SkillShareMath.selected(store.skills.map(\.id).filter { selectedSkillIDs.contains($0) }).asSkillShares,
+            maxCompletionsPerDay: maxCompletionsPerDay
         )
         dismiss()
     }

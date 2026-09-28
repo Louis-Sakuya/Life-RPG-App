@@ -1,0 +1,23 @@
+---
+description: SwiftUI 只展示和发意图，界面文案走 L10n。
+globs: Sources/Features/**/*.swift,Sources/App/**/*.swift
+alwaysApply: false
+---
+
+# 界面
+
+View 用 `@Environment(GameStore.self)` 读状态、调用用例。不要在 View 里持有 `ModelContext`，也不要在 View 里算奖励。
+
+```swift
+// ❌ 写死一种语言
+Text("完成")
+
+// ✅ 中英键成对
+Text(L10n.t("common.done"))
+```
+
+- 玩家自拟的名称（任务、自定义技能、习惯、昵称）不翻译。预设内容用 `localizedName`。
+- 颜色用 `\.palette` 和商店主题氛围。不要强制一整套深色皮肤。
+- 完成反馈的默认层是行内跳字加 `GameHaptics`。粒子和音效只在已装备对应商品时叠加。
+- 四个 Tab：今日、成长、统计、我的。发布走工会向导，按日查看走告示日历。不要把任务中心加回独立 Tab。
+- 只做竖屏 iPhone。升级二选一不可关闭，未领取选择记在 `Player.unclaimedLevelUpChoices`。

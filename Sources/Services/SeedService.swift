@@ -22,6 +22,7 @@ struct SeedService {
 
         backfillSkillCatalogMetadata()
         migrateOnboardingIfNeeded()
+        migrateTutorialIfNeeded()
         migrateSkillSlotsIfNeeded()
         syncBuiltInChallenges()
     }
@@ -67,6 +68,16 @@ struct SeedService {
         }
     }
 
+    /// 升级前已经完成初始化的存档跳过新手引导，避免老玩家被强制再走一遍。
+    private func migrateTutorialIfNeeded() {
+        let settings = PlayerRepository(context: context).settings()
+        guard !settings.hasCompletedTutorial else { return }
+        guard settings.tutorialStepRaw.isEmpty else { return }
+        if settings.hasCompletedOnboarding {
+            settings.hasCompletedTutorial = true
+        }
+    }
+
     /// 老存档可能已经学了超过初始栏位的技能，栏位至少要装得下现有技能。
     private func migrateSkillSlotsIfNeeded() {
         let player = PlayerRepository(context: context).currentPlayer()
@@ -80,14 +91,31 @@ struct SeedService {
         }
     }
 
-    /// 内置挑战每次启动都对账一次，这样在 `unlock_rules.json` 里新增挑战后，
-    /// 老用户升级应用也能拿到，而不需要写迁移代码。
+    /// 内置挑战每次启动都对账一次：新增规则会插入，已有规则会同步条件，
+    /// 这样改 JSON 里的技能名或阈值后，老存档也能跟上。
     private func syncBuiltInChallenges() {
         let repository = ProgressionRepository(context: context)
         for rule in config.unlocks.rules(of: .challenge) {
-            guard repository.challenge(ruleID: rule.id) == nil else { continue }
+            if let existing = repository.challenge(ruleID: rule.id) {
+                apply(rule, to: existing)
+                continue
+            }
             guard let challenge = Challenge.fromRule(rule) else { continue }
             repository.insert(challenge)
         }
+    }
+
+    private func apply(_ rule: UnlockRule, to challenge: Challenge) {
+        guard let condition = rule.conditions.first else { return }
+        challenge.title = rule.name
+        challenge.detail = rule.detail
+        challenge.iconName = rule.icon
+        challenge.metricKey = condition.metric
+        challenge.metricParam = condition.param
+        challenge.comparator = condition.comparator
+        challenge.threshold = condition.threshold
+        challenge.rewardEXP = rule.reward.exp
+        challenge.rewardGold = rule.reward.gold
+        challenge.rewardTitleID = rule.reward.titleID
     }
 }

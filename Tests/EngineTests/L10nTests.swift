@@ -65,4 +65,30 @@ final class L10nTests: XCTestCase {
         L10n.language = .english
         XCTAssertEqual(L10n.t("this.key.does.not.exist"), "this.key.does.not.exist")
     }
+
+    func testEveryUnlockRuleHasLocalizedNameAndDetail() {
+        let config = GameConfig.load(bundle: Bundle(for: L10nTests.self))
+        let zh = L10n.table(for: "zh-Hans")
+        let en = L10n.table(for: "en")
+        for rule in config.unlocks.rules {
+            let nameKey = "unlock.\(rule.id).name"
+            let detailKey = "unlock.\(rule.id).detail"
+            XCTAssertNotNil(zh[nameKey], "zh 缺少 \(nameKey)")
+            XCTAssertNotNil(en[nameKey], "en 缺少 \(nameKey)")
+            XCTAssertNotNil(zh[detailKey], "zh 缺少 \(detailKey)")
+            XCTAssertNotNil(en[detailKey], "en 缺少 \(detailKey)")
+            XCTAssertNotEqual(zh[nameKey], en[nameKey], "\(rule.id) 中英文名称相同，可能未本地化")
+        }
+    }
+
+    func testExistingTitlesUseChineseNames() {
+        L10n.language = .chinese
+        XCTAssertEqual(L10n.t("unlock.title_programmer.name"), "代码行者")
+        XCTAssertEqual(L10n.t("unlock.title_legend.name"), "传说")
+        XCTAssertEqual(L10n.t("unlock.title_novice.name"), "初心者")
+        L10n.language = .english
+        XCTAssertEqual(L10n.t("unlock.title_programmer.name"), "Code Walker")
+        XCTAssertEqual(L10n.t("unlock.title_legend.name"), "Legend")
+        XCTAssertEqual(L10n.t("unlock.title_novice.name"), "Novice")
+    }
 }

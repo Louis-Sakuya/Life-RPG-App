@@ -1,0 +1,24 @@
+---
+description: SwiftData 模型、奖励流水与每日结算的写入约束。
+globs: Sources/Models/**/*.swift,Sources/Services/**/*.swift,Sources/Repositories/**/*.swift,Sources/Stores/**/*.swift
+alwaysApply: false
+---
+
+# 持久化与事务
+
+`@Model` 属性必须有默认值，关系可选，禁止 `@Attribute(.unique)`。跨实体引用用 `UUID`。只保留 `Quest ↔ QuestSkillLink` 与 `Habit ↔ HabitLog` 两条关系。`GameDay` 存 `yyyymmdd` 整数。
+
+新实体只在 `ModelSchemaRegistry.allModels` 登记一次。
+
+```swift
+// ❌ 完成任务后直接改金币
+player.gold += 40
+
+// ✅ 先落 RewardTransaction，再按流水入账；撤销按同一条反向扣
+```
+
+- `Player.totalEXP` 与 `Skill.totalEXP` 是经验真相。升级金币用 `highestLevelRewarded` 水位，撤销任务不倒扣升级奖励。
+- 单次任务逾期超过 3 个活跃日：标 `cancelled`，并写入 `FailedQuestRecord`。
+- 周期任务以 7 个未暂停日为窗口。未达成进入 grace；grace 仍失败则取消该模板全部 pending。
+- 暂停日不生成实例、不标延期、不判失败、不计入窗口活跃日。
+- `GameStore` 只编排用例和界面状态。计算放 Engine，写库放 Service。

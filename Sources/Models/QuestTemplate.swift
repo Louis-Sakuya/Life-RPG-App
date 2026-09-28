@@ -18,8 +18,19 @@ final class QuestTemplate {
     /// 是为了让带关联值的枚举在 SwiftData 迁移时行为可预期。
     var recurrenceData: Data = Data()
     var startPolicyRaw: String = RecurrenceStartPolicy.thisPeriod.rawValue
+    /// 同一天最多完成几次。默认 1。
+    var maxCompletionsPerDay: Int = 1
+    /// 当前窗口（进行中或延期补债）的第一天
+    var periodStartDayValue: Int = 0
+    /// 本轮配额起算日。进入延期后保持不变，这样上一窗口已完成的次数仍计入欠债。
+    var cycleOriginDayValue: Int = 0
+    var periodStateRaw: String = RecurringPeriodState.active.rawValue
 
     var isActive: Bool = true
+    /// 玩家主动完结的游戏日。0 表示仍在进行。
+    var finishedDayValue: Int = 0
+    /// 已走完的周期窗口数。每一窗算一段旅途。
+    var completedJourneys: Int = 0
     var createdAt: Date = Date()
     var startDayValue: Int = 0
     var endDayValue: Int = 0
@@ -57,6 +68,8 @@ final class QuestTemplate {
         self.startPolicyRaw = startPolicy.rawValue
         self.createdAt = Date()
         self.startDayValue = startDay.value
+        self.periodStartDayValue = startDay.value
+        self.cycleOriginDayValue = startDay.value
     }
 
     var recurrence: RecurrenceRule {
@@ -88,10 +101,32 @@ final class QuestTemplate {
         set { startDayValue = newValue.value }
     }
 
+    var periodStart: GameDay {
+        get { GameDay(value: periodStartDayValue == 0 ? startDayValue : periodStartDayValue) }
+        set { periodStartDayValue = newValue.value }
+    }
+
+    var cycleOrigin: GameDay {
+        get { GameDay(value: cycleOriginDayValue == 0 ? periodStart.value : cycleOriginDayValue) }
+        set { cycleOriginDayValue = newValue.value }
+    }
+
+    var periodState: RecurringPeriodState {
+        get { RecurringPeriodState(rawValue: periodStateRaw) ?? .active }
+        set { periodStateRaw = newValue.rawValue }
+    }
+
     var endDay: GameDay? {
         get { endDayValue == 0 ? nil : GameDay(value: endDayValue) }
         set { endDayValue = newValue?.value ?? 0 }
     }
+
+    var finishedDay: GameDay? {
+        get { finishedDayValue == 0 ? nil : GameDay(value: finishedDayValue) }
+        set { finishedDayValue = newValue?.value ?? 0 }
+    }
+
+    var isFinished: Bool { finishedDayValue != 0 }
 
     var lastGeneratedDay: GameDay? {
         get { lastGeneratedDayValue == 0 ? nil : GameDay(value: lastGeneratedDayValue) }

@@ -21,6 +21,7 @@ struct QuestCenterView: View {
     @State private var tab: Tab = .main
     @State private var publishLaunch: QuestPublishLaunch?
     @State private var isPresentingRepeat = false
+    @State private var finishCandidate: QuestTemplate?
 
     var body: some View {
         NavigationStack {
@@ -66,6 +67,7 @@ struct QuestCenterView: View {
             .sheet(isPresented: $isPresentingRepeat) {
                 RepeatTemplateEditorView()
             }
+            .recurringFinishConfirmation(template: $finishCandidate)
         }
     }
 
@@ -115,20 +117,39 @@ struct QuestCenterView: View {
                         .font(.body.weight(.medium))
                     HStack(spacing: 6) {
                         StatPill(icon: "repeat", text: template.recurrence.displayText, tint: .teal)
-                        DifficultyStars(value: template.difficultyRaw, tint: .orange)
+                        StatPill(
+                            icon: "hourglass",
+                            text: L10n.format("quest.finish.days", durationDays(for: template)),
+                            tint: .indigo
+                        )
+                        if template.completedJourneys > 0 {
+                            StatPill(
+                                icon: "figure.walk",
+                                text: L10n.format("quest.journey.count", template.completedJourneys),
+                                tint: .teal
+                            )
+                        }
                         if template.streakCurrent > 0 {
                             StatPill(icon: "flame.fill", text: "\(template.streakCurrent)", tint: .orange)
                         }
-                        if !template.isActive {
+                        if template.isFinished {
+                            StatPill(icon: "seal.fill", text: L10n.t("quest.finished"), tint: .orange)
+                        } else if !template.isActive {
                             StatPill(icon: "pause.fill", text: L10n.t("common.paused"), tint: .secondary)
                         }
                     }
                 }
                 .swipeActions {
-                    Button(template.isActive ? L10n.t("common.pause") : L10n.t("common.enable")) {
-                        template.isActive.toggle()
-                        store.save()
-                        store.refresh()
+                    if !template.isFinished {
+                        Button(L10n.t("quest.finish")) {
+                            finishCandidate = template
+                        }
+                        .tint(.orange)
+                        Button(template.isActive ? L10n.t("common.pause") : L10n.t("common.enable")) {
+                            template.isActive.toggle()
+                            store.save()
+                            store.refresh()
+                        }
                     }
                     Button(L10n.t("common.delete"), role: .destructive) {
                         store.deleteTemplate(template)
@@ -159,5 +180,13 @@ struct QuestCenterView: View {
         if day == calendar.adding(days: 1, to: store.today) { return L10n.t("common.tomorrow") }
         if day < store.today { return L10n.format("quest.today_expired", day.shortLabel) }
         return day.shortLabel
+    }
+
+    private func durationDays(for template: QuestTemplate) -> Int {
+        RecurringFinishEngine.durationDays(
+            from: template.startDay,
+            to: template.finishedDay ?? store.today,
+            calendar: store.container.calendar
+        )
     }
 }

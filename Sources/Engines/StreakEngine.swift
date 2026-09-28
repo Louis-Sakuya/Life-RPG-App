@@ -23,6 +23,16 @@ enum StreakEngine {
         return StreakState(current: current, best: max(current, state.best), lastDay: day)
     }
 
+    /// 用一张保险卡填上「漏掉的第一天」，连胜数字先不动。
+    /// 若缺口只有一天，随后的 `advance` 会接上；缺口更大则仍会在 `decayIfBroken` 里清零。
+    static func applyShield(_ state: StreakState, today: GameDay, calendar: GameCalendar) -> (StreakState, Bool) {
+        guard let last = state.lastDay, state.current > 0 else { return (state, false) }
+        let gap = calendar.daysBetween(last, today)
+        guard gap > 1 else { return (state, false) }
+        let filled = calendar.adding(days: 1, to: last)
+        return (StreakState(current: state.current, best: state.best, lastDay: filled), true)
+    }
+
     /// 在 `day` 这一天检查连续是否已经断掉。用于每日结算时把过期的连续清零，
     /// 否则玩家会看到一个早已中断却仍显示为高位的数字。
     static func decayIfBroken(_ state: StreakState, today: GameDay, calendar: GameCalendar) -> StreakState {

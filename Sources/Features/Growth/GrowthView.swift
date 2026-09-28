@@ -27,6 +27,7 @@ struct GrowthView: View {
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
+                .tutorialAnchor(.growthHabits)
 
                 Group {
                     switch tab {
@@ -36,7 +37,7 @@ struct GrowthView: View {
                     }
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background { AtmosphereCanvas() }
             .navigationTitle(L10n.t("growth.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -52,15 +53,36 @@ struct GrowthView: View {
                             Image(systemName: "plus")
                         }
                         .disabled(tab == .skills && !store.canLearnSkill)
+                        .tutorialAnchor(.growthAdd)
                     }
                 }
             }
             .sheet(isPresented: $isPresentingSkillEditor) {
                 SkillEditorView()
             }
-            .sheet(isPresented: $isPresentingHabitEditor) {
+            .sheet(isPresented: $isPresentingHabitEditor, onDismiss: {
+                store.completeTutorialHabitIfNeeded()
+            }) {
                 HabitEditorView()
+                    .interactiveDismissDisabled(store.tutorialStep == .fillHabit)
             }
+            .onChange(of: store.tutorialForceHabitsTab) { _, force in
+                guard force else { return }
+                store.tutorialForceHabitsTab = false
+                tab = .habits
+            }
+            .onChange(of: store.tutorialOpenHabitEditor) { _, open in
+                guard open else { return }
+                store.tutorialOpenHabitEditor = false
+                tab = .habits
+                isPresentingHabitEditor = true
+            }
+            .onChange(of: isPresentingHabitEditor) { _, open in
+                if open {
+                    store.noteHabitEditorPresented()
+                }
+            }
+            .tutorialCoach(host: .growth)
         }
     }
 }

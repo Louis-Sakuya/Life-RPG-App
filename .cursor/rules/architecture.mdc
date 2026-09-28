@@ -1,0 +1,21 @@
+---
+description: Life RPG 分层、时间与经济铁律。改任何代码前先遵守。
+alwaysApply: true
+---
+
+# Life RPG 架构铁律
+
+iOS 17+ / Swift 5.9 / SwiftUI + SwiftData，竖屏 iPhone，纯本地。仓库不提交 `.xcodeproj`，工程由 `project.yml` 经 `xcodegen generate` 生成。新源文件放进 `Sources/` 或 `Tests/EngineTests/`，不要手改 pbxproj。
+
+依赖只能向下：`Features` → `Stores`（`GameStore`）→ `Services`（持有 `ModelContext`）→ `Engines`（纯函数）→ `Models` + `Core`。
+
+- `Engines/` 禁止 `import SwiftData`，禁止用 `Date()` 判断今天。
+- 「今天」只用注入的 `GameCalendar`（`today` / `gameDay(for:)`）。日界线默认 4:00。改起始小时必须整体重建依赖该日历的服务。
+- 经验、金币、加成来自 `Resources/Config/*.json`，由 `GameConfig` 加载。不要在 Swift 里写死这些数。
+- EXP / Gold 先落 `RewardTransaction`，撤销按流水回滚，禁止重算公式。
+- 商店装饰不改任务经验。请假卡与法术护盾只改暂停日或登录连胜。
+- 主线 / 支线由 `scheduledDay` 与 `createdDay` 派生；周期实例来自 `QuestTemplate`。不要加手动类型开关。
+- 等级由 `totalEXP` 经 `LevelCurve` 推导，不要把等级当成持久化真相。
+- 依赖从 `AppContainer` 注入。不要新增全局单例。
+
+行为以 `docs/01`–`05` 与 `README.md` 为准。改行为时同步对应文档。

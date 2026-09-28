@@ -73,4 +73,73 @@ final class ShopServiceTests: XCTestCase {
         XCTAssertEqual(store.player.gold, 3)
         XCTAssertTrue(store.container.shop.isOwned(item))
     }
+
+    func testBackgroundDoesNotReplaceTheme() throws {
+        let (container, player, shop) = make()
+        let parchment = try XCTUnwrap(container.config.shop.item(id: "bg_parchment"))
+
+        try shop.purchase(parchment, player: player, sandbox: true)
+
+        XCTAssertEqual(player.currentThemeID, "theme_default")
+        XCTAssertEqual(player.currentBackgroundID, "bg_parchment")
+        XCTAssertTrue(shop.isEquipped(parchment, player: player))
+    }
+
+    func testPetCanBeUnequipped() throws {
+        let (container, player, shop) = make()
+        let slime = try XCTUnwrap(container.config.shop.item(id: "pet_slime"))
+
+        try shop.purchase(slime, player: player, sandbox: true)
+        XCTAssertEqual(player.currentPetID, "pet_slime")
+
+        shop.equip(slime, player: player)
+        XCTAssertEqual(player.currentPetID, "")
+        XCTAssertFalse(shop.isEquipped(slime, player: player))
+    }
+
+    func testLegacyBackgroundStuckInThemeSlotIsMigrated() throws {
+        let (container, player, shop) = make()
+        let aurora = try XCTUnwrap(container.config.shop.item(id: "bg_aurora"))
+        try shop.purchase(aurora, player: player, sandbox: true)
+        player.currentThemeID = "bg_aurora"
+        player.currentBackgroundID = ""
+
+        shop.normalizeEquipment(player)
+
+        XCTAssertEqual(player.currentThemeID, "theme_default")
+        XCTAssertEqual(player.currentBackgroundID, "bg_aurora")
+    }
+
+    func testLeaveCardIncrementsInventoryAndCanPauseADay() throws {
+        let (container, player, shop) = make()
+        player.gold = 800
+        let ward = try XCTUnwrap(container.config.shop.item(id: ShopItemID.leaveWard))
+
+        try shop.purchase(ward, player: player)
+
+        XCTAssertEqual(player.leaveCardCount, 1)
+        XCTAssertEqual(player.gold, 100)
+        XCTAssertFalse(shop.isOwned(ward))
+    }
+
+    func testShieldCannotStackUntilConsumed() throws {
+        let (container, player, shop) = make()
+        player.gold = 1_000
+        let shield = try XCTUnwrap(container.config.shop.item(id: ShopItemID.streakShield))
+
+        try shop.purchase(shield, player: player)
+        XCTAssertTrue(player.hasStreakShield)
+        XCTAssertEqual(shop.validate(shield, player: player), .shieldAlreadyHeld)
+
+        player.hasStreakShield = false
+        XCTAssertNil(shop.validate(shield, player: player))
+    }
+
+    func testForestThemePaletteReadsAtmosphere() throws {
+        let (container, _, _) = make()
+        let item = try XCTUnwrap(container.config.shop.item(id: "theme_forest"))
+        let palette = ThemePalette(item: item)
+        XCTAssertEqual(palette.atmosphere, .forest)
+        XCTAssertEqual(palette.themeID, "theme_forest")
+    }
 }

@@ -1,0 +1,22 @@
+---
+description: 引擎必须是可单测的纯函数，数值改配置不改公式结构。
+globs: Sources/Engines/**/*.swift,Tests/EngineTests/**/*.swift
+alwaysApply: false
+---
+
+# 引擎与单测
+
+引擎只接受和返回 `struct`（优先 `Sendable`）。输入用 `RewardContext`、`GameDay` 这类值，不碰 `ModelContext`。
+
+```swift
+// ❌ 在引擎里取「今天」
+let today = GameCalendar().today
+
+// ✅ 调用方传入游戏日
+func evaluate(_ context: RewardContext) -> RewardResult
+```
+
+- 同组成交互斥，只取一条，惩罚优先。改百分比改 `modifiers.json`，不要改分组结构。
+- 新结算规则先写成纯函数，再由 Service 落库。每日结算的补算与幂等留在 `DayCycleService`。
+- 单测放 `Tests/EngineTests/`，`@testable import LifeRPG`，用固定 `GameDay`，不依赖当前时钟。
+- 改奖励、周期窗口、连胜、解锁时补对应用例。配置表已打进测试包，JSON 形状错误应让单测失败。

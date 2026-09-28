@@ -89,18 +89,23 @@ final class HabitService {
     }
 
     /// 一键切换：未完成则补满当天目标，已完成则清空。用于首页的快速打卡手势。
-    func toggle(_ habit: Habit, player: Player, on day: GameDay? = nil) {
+    @discardableResult
+    func toggle(_ habit: Habit, player: Player, on day: GameDay? = nil) -> RewardResult? {
         let targetDay = day ?? calendar.today
         let current = habits.log(for: habit, on: targetDay)?.count ?? 0
         if current >= habit.dailyTarget {
             for _ in 0..<current {
                 undoCheckIn(habit, player: player, on: targetDay)
             }
-        } else {
-            for _ in current..<habit.dailyTarget {
-                checkIn(habit, player: player, on: targetDay)
+            return nil
+        }
+        var granted: RewardResult?
+        for _ in current..<habit.dailyTarget {
+            if let result = checkIn(habit, player: player, on: targetDay) {
+                granted = result
             }
         }
+        return granted
     }
 
     func progress(for habit: Habit, on day: GameDay? = nil) -> Int {

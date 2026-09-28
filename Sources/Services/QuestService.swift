@@ -138,13 +138,21 @@ final class QuestService {
     @discardableResult
     func complete(_ quest: Quest, player: Player) -> RewardResult? {
         guard quest.status == .pending else { return nil }
+        guard !player.isPaused(calendar.today) else { return nil }
 
         let now = Date()
         let completedDay = calendar.today
+        if let templateID = quest.templateID, let template = quests.template(id: templateID) {
+            let doneToday = quests.completedCount(templateID: templateID, on: completedDay)
+            guard doneToday < max(1, template.maxCompletionsPerDay) else { return nil }
+        }
+
         quest.status = .completed
         quest.completedAt = now
         quest.completedDay = completedDay
-        quest.isOverdue = completedDay > quest.scheduledDay
+        if completedDay > quest.scheduledDay {
+            quest.isOverdue = true
+        }
 
         let template = quest.templateID.flatMap { quests.template(id: $0) }
         if let template {
@@ -179,6 +187,14 @@ final class QuestService {
         if completedDay != quest.scheduledDay {
             aggregates.refresh(day: quest.scheduledDay)
         }
+        if let templateID = quest.templateID, let template = quests.template(id: templateID) {
+            _ = quests.ensurePendingRepeating(
+                template: template,
+                on: completedDay,
+                calendar: calendar,
+                pausedDayValues: player.pausedDaySet
+            )
+        }
         return result
     }
 
@@ -212,12 +228,51 @@ final class QuestService {
         }
     }
 
-    func toggleCompletion(_ quest: Quest, player: Player) {
+    func previewFinish(_ template: QuestTemplate) -> RecurringFinishReward {
+        let today = calendar.today
+        let duration = RecurringFinishEngine.durationDays(from: template.startDay, to: today, calendar: calendar)
+        let completions = quests.completedCount(templateID: template.id)
+        return RecurringFinishEngine.evaluate(durationDays: duration, completions: completions)
+    }
+
+    /// 结束一趟远行：停生成、取消待办、按持续天数发放归途奖励。
+    @discardableResult
+    func finishTemplate(_ template: QuestTemplate, player: Player) -> RecurringFinishReward? {
+        guard !template.isFinished else { return nil }
+
+        let today = calendar.today
+        let reward = previewFinish(template)
+
+        template.finishedDay = today
+        template.endDay = today
+        template.isActive = false
+
+        for quest in quests.pendingRepeating(templateID: template.id) {
+            cancel(quest, player: player)
+        }
+
+        rewards.grantFlat(
+            exp: reward.exp,
+            gold: reward.gold,
+            to: player,
+            source: .recurringFinish,
+            sourceID: template.id,
+            sourceRuleID: "recurring_finish",
+            title: template.title,
+            on: today
+        )
+
+        player.totalRecurringSeriesFinished += 1
+        player.longestRecurringSeriesDays = max(player.longestRecurringSeriesDays, reward.durationDays)
+        return reward
+    }
+
+    func toggleCompletion(_ quest: Quest, player: Player) -> RewardResult? {
         if quest.status == .completed {
             uncomplete(quest, player: player)
-        } else {
-            complete(quest, player: player)
+            return nil
         }
+        return complete(quest, player: player)
     }
 
     // MARK: - 预览
@@ -244,6 +299,7 @@ final class QuestService {
             completedDay: quest.completedDay ?? calendar.today,
             dueAt: quest.dueAt,
             completedAt: completedAt,
+            forceOverdue: quest.isOverdue,
             consecutiveStreak: template?.streak.current ?? quest.streakAtCompletion,
             globalStreakDays: player.loginStreakCurrent,
             skillShares: shares,

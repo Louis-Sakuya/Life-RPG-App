@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import UIKit
+import UserNotifications
 
 /// 备份文件的载荷。刻意用独立的 DTO 而不是直接序列化 `@Model`：
 /// 备份格式一旦发布就要长期兼容，不应该被数据库结构的调整牵着走。
@@ -8,11 +9,18 @@ struct BackupPayload: Codable {
     struct PlayerDTO: Codable {
         var nickname: String
         var avatarSymbol: String
+        /// 可选，旧备份没有自定义头像
+        var avatarImageData: Data?
         var totalEXP: Int
         var gold: Int
         var currentTitleID: String?
         var currentThemeID: String
         var currentFrameID: String?
+        var currentBackgroundID: String?
+        var currentPetID: String?
+        var currentSoundID: String?
+        var currentLevelEffectID: String?
+        var currentCompleteEffectID: String?
         var loginStreakCurrent: Int
         var loginStreakBest: Int
         var lastLoginDayValue: Int
@@ -21,6 +29,8 @@ struct BackupPayload: Codable {
         var totalQuestsCompleted: Int
         var totalMainQuestsCompleted: Int
         var totalSideQuestsCompleted: Int
+        var totalRecurringSeriesFinished: Int?
+        var longestRecurringSeriesDays: Int?
         var totalHabitCheckIns: Int
         var totalEXPEarned: Int
         var totalGoldEarned: Int
@@ -38,6 +48,9 @@ struct BackupPayload: Codable {
         var lifePoints: Int?
         var socialPoints: Int?
         var creationPoints: Int?
+        var leaveCardCount: Int?
+        var hasStreakShield: Bool?
+        var pausedDayValues: [Int]?
     }
 
     struct SkillDTO: Codable {
@@ -66,8 +79,24 @@ struct BackupPayload: Codable {
         var dueAt: Date?
         var completedAt: Date?
         var isOverdue: Bool
+        var overdueSinceDayValue: Int?
         var templateID: UUID?
         var skillShares: [String]
+    }
+
+    struct FailedQuestDTO: Codable {
+        var id: UUID
+        var title: String
+        var detail: String
+        var kind: String
+        var scheduledStartDayValue: Int
+        var scheduledEndDayValue: Int
+        var failedDayValue: Int
+        var failedAt: Date
+        var progressDone: Int
+        var progressTarget: Int
+        var templateID: UUID?
+        var originalQuestID: UUID?
     }
 
     struct HabitDTO: Codable {
@@ -121,6 +150,7 @@ struct BackupPayload: Codable {
     var dailyRecords: [DailyRecordDTO]
     var unlocks: [UnlockDTO]
     var ownedItemIDs: [String]
+    var failedQuests: [FailedQuestDTO]?
 }
 
 /// 数据导出与备份恢复。全部产出写到临时目录，由系统分享面板接管。
@@ -130,10 +160,29 @@ final class ExportService {
     private let config: GameConfig
     private let calendar: GameCalendar
 
+    /// 注销时先写下标记再退出。下次启动在界面出现前清档，避免 SwiftData 对象被删时界面还在读。
+    static let pendingResetDefaultsKey = "liferpg.pendingAccountReset"
+
     init(context: ModelContext, config: GameConfig, calendar: GameCalendar) {
         self.context = context
         self.config = config
         self.calendar = calendar
+    }
+
+    static func consumePendingResetIfNeeded(context: ModelContext, config: GameConfig) {
+        guard UserDefaults.standard.bool(forKey: pendingResetDefaultsKey) else { return }
+        let service = ExportService(context: context, config: config, calendar: GameCalendar(dayStartHour: 4))
+        try? service.resetSave()
+        UserDefaults.standard.set(false, forKey: pendingResetDefaultsKey)
+    }
+
+    static func markPendingResetAndTerminate() {
+        UserDefaults.standard.set(true, forKey: pendingResetDefaultsKey)
+        UserDefaults.standard.synchronize()
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        exit(0)
     }
 
     // MARK: - JSON 备份
@@ -275,11 +324,17 @@ final class ExportService {
             player: BackupPayload.PlayerDTO(
                 nickname: player.nickname,
                 avatarSymbol: player.avatarSymbol,
+                avatarImageData: player.avatarImageData,
                 totalEXP: player.totalEXP,
                 gold: player.gold,
                 currentTitleID: player.currentTitleID,
                 currentThemeID: player.currentThemeID,
                 currentFrameID: player.currentFrameID,
+                currentBackgroundID: player.currentBackgroundID,
+                currentPetID: player.currentPetID,
+                currentSoundID: player.currentSoundID,
+                currentLevelEffectID: player.currentLevelEffectID,
+                currentCompleteEffectID: player.currentCompleteEffectID,
                 loginStreakCurrent: player.loginStreakCurrent,
                 loginStreakBest: player.loginStreakBest,
                 lastLoginDayValue: player.lastLoginDayValue,
@@ -288,6 +343,8 @@ final class ExportService {
                 totalQuestsCompleted: player.totalQuestsCompleted,
                 totalMainQuestsCompleted: player.totalMainQuestsCompleted,
                 totalSideQuestsCompleted: player.totalSideQuestsCompleted,
+                totalRecurringSeriesFinished: player.totalRecurringSeriesFinished,
+                longestRecurringSeriesDays: player.longestRecurringSeriesDays,
                 totalHabitCheckIns: player.totalHabitCheckIns,
                 totalEXPEarned: player.totalEXPEarned,
                 totalGoldEarned: player.totalGoldEarned,
@@ -303,7 +360,10 @@ final class ExportService {
                 mindPoints: player.mindPoints,
                 lifePoints: player.lifePoints,
                 socialPoints: player.socialPoints,
-                creationPoints: player.creationPoints
+                creationPoints: player.creationPoints,
+                leaveCardCount: player.leaveCardCount,
+                hasStreakShield: player.hasStreakShield,
+                pausedDayValues: player.pausedDayValues
             ),
             skills: skillRepo.allSkills(includeArchived: true).map {
                 BackupPayload.SkillDTO(
@@ -333,6 +393,7 @@ final class ExportService {
                     dueAt: quest.dueAt,
                     completedAt: quest.completedAt,
                     isOverdue: quest.isOverdue,
+                    overdueSinceDayValue: quest.overdueSinceDayValue,
                     templateID: quest.templateID,
                     skillShares: questRepo.skillShares(of: quest).map(\.token)
                 )
@@ -379,7 +440,23 @@ final class ExportService {
                     unlockedDayValue: $0.unlockedDayValue
                 )
             },
-            ownedItemIDs: Array(progression.ownedItemIDs())
+            ownedItemIDs: Array(progression.ownedItemIDs()),
+            failedQuests: questRepo.allFailedRecords().map {
+                BackupPayload.FailedQuestDTO(
+                    id: $0.id,
+                    title: $0.title,
+                    detail: $0.detail,
+                    kind: $0.kindRaw,
+                    scheduledStartDayValue: $0.scheduledStartDayValue,
+                    scheduledEndDayValue: $0.scheduledEndDayValue,
+                    failedDayValue: $0.failedDayValue,
+                    failedAt: $0.failedAt,
+                    progressDone: $0.progressDone,
+                    progressTarget: $0.progressTarget,
+                    templateID: $0.templateID,
+                    originalQuestID: $0.originalQuestID
+                )
+            }
         )
     }
 
@@ -398,6 +475,7 @@ final class ExportService {
         try context.delete(model: RewardTransaction.self)
         try context.delete(model: Reminder.self)
         try context.delete(model: OwnedItem.self)
+        try context.delete(model: FailedQuestRecord.self)
         try context.delete(model: AppSettings.self)
         try context.delete(model: Player.self)
     }
@@ -405,11 +483,17 @@ final class ExportService {
     private func apply(_ payload: BackupPayload) {
         let player = Player(nickname: payload.player.nickname)
         player.avatarSymbol = payload.player.avatarSymbol
+        player.avatarImageData = payload.player.avatarImageData
         player.totalEXP = payload.player.totalEXP
         player.gold = payload.player.gold
         player.currentTitleID = payload.player.currentTitleID
         player.currentThemeID = payload.player.currentThemeID
         player.currentFrameID = payload.player.currentFrameID
+        player.currentBackgroundID = payload.player.currentBackgroundID ?? ""
+        player.currentPetID = payload.player.currentPetID ?? ""
+        player.currentSoundID = payload.player.currentSoundID ?? ""
+        player.currentLevelEffectID = payload.player.currentLevelEffectID ?? ""
+        player.currentCompleteEffectID = payload.player.currentCompleteEffectID ?? ""
         player.loginStreakCurrent = payload.player.loginStreakCurrent
         player.loginStreakBest = payload.player.loginStreakBest
         player.lastLoginDayValue = payload.player.lastLoginDayValue
@@ -418,6 +502,8 @@ final class ExportService {
         player.totalQuestsCompleted = payload.player.totalQuestsCompleted
         player.totalMainQuestsCompleted = payload.player.totalMainQuestsCompleted
         player.totalSideQuestsCompleted = payload.player.totalSideQuestsCompleted
+        player.totalRecurringSeriesFinished = payload.player.totalRecurringSeriesFinished ?? 0
+        player.longestRecurringSeriesDays = payload.player.longestRecurringSeriesDays ?? 0
         player.totalHabitCheckIns = payload.player.totalHabitCheckIns
         player.totalEXPEarned = payload.player.totalEXPEarned
         player.totalGoldEarned = payload.player.totalGoldEarned
@@ -438,9 +524,13 @@ final class ExportService {
         player.lifePoints = payload.player.lifePoints ?? 0
         player.socialPoints = payload.player.socialPoints ?? 0
         player.creationPoints = payload.player.creationPoints ?? 0
+        player.leaveCardCount = payload.player.leaveCardCount ?? 0
+        player.hasStreakShield = payload.player.hasStreakShield ?? false
+        player.pausedDayValues = payload.player.pausedDayValues ?? []
         context.insert(player)
         let settings = AppSettings()
         settings.hasCompletedOnboarding = true
+        settings.hasCompletedTutorial = true
         context.insert(settings)
 
         for dto in payload.skills {
@@ -470,6 +560,7 @@ final class ExportService {
             quest.completedAt = dto.completedAt
             quest.completedDayValue = dto.completedDayValue
             quest.isOverdue = dto.isOverdue
+            quest.overdueSinceDayValue = dto.overdueSinceDayValue ?? 0
             context.insert(quest)
             quest.skillLinks = []
             for token in dto.skillShares {
@@ -530,6 +621,24 @@ final class ExportService {
                     day: GameDay(value: dto.unlockedDayValue)
                 )
             )
+        }
+
+        for dto in payload.failedQuests ?? [] {
+            let record = FailedQuestRecord(
+                title: dto.title,
+                detail: dto.detail,
+                kind: QuestKind(rawValue: dto.kind) ?? .side,
+                scheduledStart: GameDay(value: dto.scheduledStartDayValue),
+                scheduledEnd: GameDay(value: dto.scheduledEndDayValue),
+                failedDay: GameDay(value: dto.failedDayValue),
+                progressDone: dto.progressDone,
+                progressTarget: dto.progressTarget,
+                templateID: dto.templateID,
+                originalQuestID: dto.originalQuestID
+            )
+            record.id = dto.id
+            record.failedAt = dto.failedAt
+            context.insert(record)
         }
 
         for itemID in payload.ownedItemIDs {

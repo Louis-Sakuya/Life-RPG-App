@@ -26,6 +26,8 @@ final class Quest {
     var completedAt: Date?
     var completedDayValue: Int = 0
     var isOverdue: Bool = false
+    /// 第一次被标延期的游戏日。改期不会清掉，避免 3 天失败时钟被重置。
+    var overdueSinceDayValue: Int = 0
 
     /// 由哪个重复模板生成，弱引用，避免关系图复杂化
     var templateID: UUID?
@@ -103,6 +105,11 @@ final class Quest {
     }
 
     var isCompleted: Bool { status == .completed }
+
+    var overdueSinceDay: GameDay? {
+        get { overdueSinceDayValue == 0 ? nil : GameDay(value: overdueSinceDayValue) }
+        set { overdueSinceDayValue = newValue?.value ?? 0 }
+    }
 
     static func boardOrder(_ lhs: Quest, _ rhs: Quest) -> Bool {
         QuestBoardOrdering.appearsBefore(

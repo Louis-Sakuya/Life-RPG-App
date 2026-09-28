@@ -3,45 +3,32 @@ import SwiftUI
 struct PlayerHeaderView: View {
     @Environment(GameStore.self) private var store
     @Environment(\.palette) private var palette
+    @State private var isEditingAvatar = false
 
     var body: some View {
         let progress = store.levelProgress
         let player = store.player
 
-        VStack(spacing: 12) {
-            HStack(spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
                 avatar
 
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Text(player.nickname)
-                            .font(.title3.weight(.semibold))
-                        if let title = store.currentTitleName {
-                            Text(title)
-                                .font(.caption2.weight(.medium))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(palette.accent.opacity(0.18)))
-                                .foregroundStyle(palette.accent)
-                        }
-                    }
+                    Text(player.nickname)
+                        .font(.title3.weight(.semibold))
+                        .lineLimit(1)
 
-                    HStack(spacing: 8) {
-                        Text("Lv\(progress.level)")
-                            .font(.subheadline.weight(.bold))
+                    if let title = store.currentTitleName {
+                        Text(title)
+                            .font(.caption2.weight(.medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(palette.accent.opacity(0.18)))
                             .foregroundStyle(palette.accent)
-                            .fixedSize()
-                        Text(dateText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
-                    Text(L10n.format("header.day_n", max(1, player.totalDaysPlayed)))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
                 }
-
-                Spacer(minLength: 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 VStack(alignment: .trailing, spacing: 6) {
                     GoldBadge(amount: player.gold, infinite: store.isTestShopSandboxEnabled)
@@ -49,29 +36,37 @@ struct PlayerHeaderView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                ProgressBar(value: progress.progress, gradient: palette.gradient)
-                HStack {
-                    Text(
-                        progress.isMaxLevel
-                            ? L10n.t("common.max_level")
-                            : L10n.format("exp.progress", progress.currentEXP, progress.requiredEXP)
-                    )
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    if let tier = store.nextStreakTier {
-                        Text(L10n.format(
-                            "header.streak_next",
-                            tier.days - store.player.loginStreakCurrent,
-                            tier.multiplier
-                        ))
+            HStack(spacing: 10) {
+                Text("Lv\(progress.level)")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(palette.accent)
+                    .fixedSize()
+
+                VStack(alignment: .leading, spacing: 4) {
+                    ProgressBar(value: progress.progress, gradient: palette.gradient)
+                    HStack {
+                        Text(
+                            progress.isMaxLevel
+                                ? L10n.t("common.max_level")
+                                : L10n.format("exp.progress", progress.currentEXP, progress.requiredEXP)
+                        )
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                    } else if store.streakMultiplier > 1 {
-                        Text(L10n.format("header.streak_now", store.streakMultiplier))
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
+                        Spacer(minLength: 8)
+                        if let tier = store.nextStreakTier {
+                            Text(L10n.format(
+                                "header.streak_next",
+                                tier.days - store.player.loginStreakCurrent,
+                                tier.multiplier
+                            ))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
+                        } else if store.streakMultiplier > 1 {
+                            Text(L10n.format("header.streak_now", store.streakMultiplier))
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                        }
                     }
                 }
             }
@@ -79,45 +74,43 @@ struct PlayerHeaderView: View {
         .padding(AppMetrics.cardPadding)
         .background(
             RoundedRectangle(cornerRadius: AppMetrics.cardCornerRadius, style: .continuous)
-                .fill(palette.gradient.opacity(0.14))
+                .fill(palette.gradient.opacity(palette.plateFillOpacity))
+                .shadow(color: palette.accent.opacity(0.16), radius: 12, y: 4)
         )
+        .overlay(
+            OrnateBorder(
+                cornerRadius: AppMetrics.cardCornerRadius,
+                colors: palette.ornateColors,
+                lineWidth: 1.6
+            )
+        )
+        .sheet(isPresented: $isEditingAvatar) {
+            AvatarEditorSheet(player: store.player)
+        }
     }
 
     private var avatar: some View {
-        ZStack {
-            Circle()
-                .fill(palette.gradient)
-                .frame(width: 54, height: 54)
-            if let data = store.player.avatarImageData, let image = UIImage(data: data) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 50, height: 50)
-                    .clipShape(Circle())
-            } else {
-                Image(systemName: store.player.avatarSymbol)
-                    .font(.system(size: 26))
-                    .foregroundStyle(.white)
+        Button {
+            isEditingAvatar = true
+        } label: {
+            AvatarView(
+                symbol: store.player.avatarSymbol,
+                imageData: store.player.avatarImageData,
+                size: 54,
+                showsEditBadge: true
+            )
+            .overlay {
+                if let frame = store.equippedFrame {
+                    AvatarFrameOverlay(
+                        style: frame.styleID,
+                        color: Color(hex: frame.accentHex ?? "#B08D57"),
+                        size: 54
+                    )
+                }
             }
+            .padding(10)
         }
-        .overlay(
-            Circle()
-                .strokeBorder(frameColor, lineWidth: store.player.currentFrameID == nil ? 0 : 3)
-                .frame(width: 60, height: 60)
-        )
-    }
-
-    private var frameColor: Color {
-        guard let id = store.player.currentFrameID,
-              let item = store.container.config.shop.item(id: id),
-              let hex = item.accentHex else { return .clear }
-        return Color(hex: hex)
-    }
-
-    private var dateText: String {
-        let formatter = DateFormatter()
-        formatter.locale = L10n.locale
-        formatter.setLocalizedDateFormatFromTemplate("MMMd EEE")
-        return formatter.string(from: store.container.calendar.displayDate(of: store.today))
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.t("avatar.edit"))
     }
 }

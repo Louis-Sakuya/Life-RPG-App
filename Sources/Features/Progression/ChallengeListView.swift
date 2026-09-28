@@ -9,42 +9,49 @@ struct ChallengeListView: View {
     @State private var isPresentingEditor = false
 
     var body: some View {
-        List {
-            let entries = store.challengeProgress()
-            let ongoing = entries.filter { !$0.challenge.isCompleted }
-            let finished = entries.filter { $0.challenge.isCompleted }
+        let entries = store.challengeProgress()
+        let ongoing = entries.filter { !$0.challenge.isCompleted }.sorted { $0.progress > $1.progress }
+        let finished = entries.filter { $0.challenge.isCompleted }
 
-            Section {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                honorSectionTitle(L10n.t("challenge.ongoing"))
                 if ongoing.isEmpty {
                     Text(L10n.t("challenge.none"))
+                        .font(.caption)
                         .foregroundStyle(.secondary)
+                } else {
+                    ForEach(ongoing, id: \.challenge.id) { entry in
+                        ChallengeRow(challenge: entry.challenge, progress: entry.progress, text: entry.text)
+                    }
                 }
-                ForEach(ongoing, id: \.challenge.id) { entry in
-                    ChallengeRow(challenge: entry.challenge, progress: entry.progress, text: entry.text)
-                }
-            } header: {
-                Text(L10n.t("challenge.ongoing"))
-            } footer: {
-                Text(L10n.t("challenge.footer"))
-            }
 
-            if !finished.isEmpty {
-                Section(L10n.t("challenge.completed")) {
+                Text(L10n.t("challenge.footer"))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+
+                if !finished.isEmpty {
+                    honorSectionTitle(L10n.t("challenge.completed"))
                     ForEach(finished, id: \.challenge.id) { entry in
                         ChallengeRow(challenge: entry.challenge, progress: 1, text: entry.text)
                     }
                 }
-            }
 
-            Section {
                 Button {
                     isPresentingEditor = true
                 } label: {
-                    Label(L10n.t("challenge.custom"), systemImage: "plus.circle")
+                    HonorSurface {
+                        Label(L10n.t("challenge.custom"), systemImage: "plus.circle")
+                            .foregroundStyle(palette.accent)
+                    }
                 }
+                .buttonStyle(.plain)
+                .padding(.top, 8)
             }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 24)
         }
-        .listStyle(.insetGrouped)
+        .background { AtmosphereCanvas() }
         .sheet(isPresented: $isPresentingEditor) {
             ChallengeEditorView()
         }
@@ -58,40 +65,47 @@ struct ChallengeRow: View {
     var progress: Double
     var text: String?
 
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(palette.accent.opacity(challenge.isCompleted ? 0.9 : 0.14))
-                    .frame(width: 40, height: 40)
-                Image(systemName: challenge.isCompleted ? "checkmark" : challenge.iconName)
-                    .foregroundStyle(challenge.isCompleted ? .white : palette.accent)
-            }
+    private var goldTint: Color { Color(hex: "#D4A017") }
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text(challenge.title)
-                    .font(.body.weight(.medium))
-                if !challenge.detail.isEmpty {
-                    Text(challenge.detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+    var body: some View {
+        HonorSurface {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(palette.accent.opacity(challenge.isCompleted ? 0.22 : 0.12))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: challenge.isCompleted ? "sparkle" : challenge.iconName)
+                        .foregroundStyle(challenge.isCompleted ? goldTint : palette.accent)
                 }
-                ProgressBar(value: progress, gradient: palette.gradient, height: 6)
-                HStack {
-                    if let text {
-                        Text(text)
-                            .font(.caption2)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(challenge.title)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(challenge.isCompleted ? goldTint : Color.primary)
+                    if !challenge.detail.isEmpty {
+                        Text(challenge.detail)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Spacer()
-                    if challenge.rewardEXP > 0 || challenge.rewardGold > 0 {
-                        Text("+\(challenge.rewardEXP) EXP · +\(challenge.rewardGold) G")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+                    if !challenge.isCompleted {
+                        ProgressBar(value: progress, gradient: palette.gradient, height: 6)
+                    }
+                    HStack {
+                        if let text, !challenge.isCompleted {
+                            Text(text)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if challenge.rewardEXP > 0 || challenge.rewardGold > 0 {
+                            Text("+\(challenge.rewardEXP) EXP · +\(challenge.rewardGold) G")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
         }
-        .padding(.vertical, 4)
+        .opacity(challenge.isCompleted ? 1 : 0.92)
     }
 }

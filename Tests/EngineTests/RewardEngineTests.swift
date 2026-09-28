@@ -77,12 +77,12 @@ final class RewardEngineTests: XCTestCase {
         XCTAssertEqual(result.multiplier, 1.8, accuracy: 0.001)
     }
 
-    func testWorstCaseIsClampedAtFloor() {
-        // 当天临时 -0.5、延期完成 -0.3 → 0.2，恰好落在下限
+    func testWorstCaseMultiplier() {
+        // 当天临时 -0.2、延期完成 -0.5 → 0.3
         let result = engine.evaluate(
             context(plannedAhead: false, scheduled: yesterday, completed: today)
         )
-        XCTAssertEqual(result.multiplier, 0.2, accuracy: 0.001)
+        XCTAssertEqual(result.multiplier, 0.3, accuracy: 0.001)
     }
 
     func testMultiplierNeverExceedsClamp() {
@@ -122,12 +122,12 @@ final class RewardEngineTests: XCTestCase {
 
     // MARK: - 规划引导
 
-    /// 这是产品的核心引导：提前规划的收益必须显著高于当天临时，
-    /// 否则 Tomorrow Planning 就失去意义
+    /// 提前规划仍应明显高于当天临时，但支线不再打五折
     func testPlanningGapIsSubstantial() {
         let planned = engine.evaluate(context(plannedAhead: true))
         let impromptu = engine.evaluate(context(plannedAhead: false))
-        XCTAssertGreaterThan(Double(planned.exp), Double(impromptu.exp) * 1.9)
+        XCTAssertGreaterThan(planned.exp, impromptu.exp)
+        XCTAssertGreaterThan(Double(planned.exp), Double(impromptu.exp) * 1.3)
     }
 
     // MARK: - 技能分配

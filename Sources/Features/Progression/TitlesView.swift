@@ -6,64 +6,113 @@ struct TitlesView: View {
     @Environment(\.palette) private var palette
 
     var body: some View {
-        List {
-            Section {
+        let entries = store.ruleProgress(kind: .title)
+        let unlocked = entries.filter(\.isUnlocked)
+        let locked = entries.filter { !$0.isUnlocked }.sorted { $0.progress > $1.progress }
+
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
                 Button {
                     store.equipTitle(nil)
                 } label: {
-                    HStack {
-                        Text(L10n.t("title.none"))
-                        Spacer()
-                        if store.player.currentTitleID == nil {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(palette.accent)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-
-            let entries = store.ruleProgress(kind: .title)
-            let unlocked = entries.filter(\.isUnlocked)
-
-            Section(L10n.t("unlock.obtained")) {
-                if unlocked.isEmpty {
-                    Text(L10n.t("title.empty"))
-                        .foregroundStyle(.secondary)
-                }
-                ForEach(unlocked, id: \.rule.id) { entry in
-                    Button {
-                        store.equipTitle(entry.rule.id)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: entry.rule.icon)
-                                .foregroundStyle(palette.accent)
-                                .frame(width: 26)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.rule.localizedName)
-                                Text(entry.rule.localizedDetail)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                    HonorSurface {
+                        HStack {
+                            Text(L10n.t("title.none"))
+                                .foregroundStyle(.primary)
                             Spacer()
-                            if store.player.currentTitleID == entry.rule.id {
+                            if store.player.currentTitleID == nil {
                                 Image(systemName: "checkmark")
                                     .foregroundStyle(palette.accent)
                             }
                         }
                     }
-                    .buttonStyle(.plain)
+                }
+                .buttonStyle(.plain)
+
+                if unlocked.isEmpty {
+                    Text(L10n.t("title.empty"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    honorSectionTitle(L10n.t("unlock.obtained"))
+                    ForEach(unlocked, id: \.rule.id) { entry in
+                        TitleHonorRow(
+                            rule: entry.rule,
+                            isEquipped: store.player.currentTitleID == entry.rule.id
+                        ) {
+                            store.equipTitle(entry.rule.id)
+                        }
+                    }
+                }
+
+                if !locked.isEmpty {
+                    honorSectionTitle(L10n.t("unlock.locked"))
+                    ForEach(locked, id: \.rule.id) { entry in
+                        UnlockRow(rule: entry.rule, progress: entry.progress, text: entry.text, isUnlocked: false)
+                    }
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 24)
+        }
+        .background { AtmosphereCanvas() }
+        .navigationTitle(L10n.t("profile.titles"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
 
-            Section(L10n.t("unlock.locked")) {
-                ForEach(entries.filter { !$0.isUnlocked }, id: \.rule.id) { entry in
-                    UnlockRow(rule: entry.rule, progress: entry.progress, text: entry.text, isUnlocked: false)
+struct TitleHonorRow: View {
+    @Environment(\.palette) private var palette
+
+    var rule: UnlockRule
+    var isEquipped: Bool
+    var onEquip: () -> Void
+
+    private var goldTint: Color { Color(hex: "#D4A017") }
+
+    var body: some View {
+        HonorSurface {
+            HStack(spacing: 12) {
+                Image(systemName: isEquipped ? "sparkle" : rule.icon)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(isEquipped ? goldTint : palette.accent)
+                    .frame(width: 22)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(rule.localizedName)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(isEquipped ? goldTint : Color.primary)
+                    if !rule.localizedDetail.isEmpty {
+                        Text(rule.localizedDetail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                if isEquipped {
+                    Text(L10n.t("title.equipped"))
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .foregroundStyle(goldTint)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(goldTint.opacity(0.85), lineWidth: 1)
+                        )
+                } else {
+                    Button(L10n.t("title.equip"), action: onEquip)
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .foregroundStyle(goldTint)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .strokeBorder(goldTint.opacity(0.7), lineWidth: 1)
+                        )
                 }
             }
         }
-        .listStyle(.insetGrouped)
-        .navigationTitle(L10n.t("profile.titles"))
-        .navigationBarTitleDisplayMode(.inline)
     }
 }

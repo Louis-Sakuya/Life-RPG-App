@@ -6,6 +6,7 @@ import SwiftData
 @Model
 final class Player {
     static let defaultNickname = "冒险者"
+    static let defaultAvatarSymbol = "person.crop.circle.fill"
 
     var id: UUID = UUID()
     var nickname: String = "冒险者"
@@ -24,6 +25,12 @@ final class Player {
     var currentTitleID: String?
     var currentThemeID: String = "theme_default"
     var currentFrameID: String?
+    /// 与主题独立：背景是叠加在氛围上的纸纹 / 极光。
+    var currentBackgroundID: String = ""
+    var currentPetID: String = ""
+    var currentSoundID: String = ""
+    var currentLevelEffectID: String = ""
+    var currentCompleteEffectID: String = ""
 
     var createdAt: Date = Date()
     /// 最后一次完成每日结算的游戏日，`DayCycleService` 以此判断需要补算多少天
@@ -44,6 +51,10 @@ final class Player {
     var totalQuestsCompleted: Int = 0
     var totalMainQuestsCompleted: Int = 0
     var totalSideQuestsCompleted: Int = 0
+    /// 主动完结的周期契约数量
+    var totalRecurringSeriesFinished: Int = 0
+    /// 单条已完结契约的最长持续天数
+    var longestRecurringSeriesDays: Int = 0
     var totalHabitCheckIns: Int = 0
     var totalEXPEarned: Int = 0
     var totalGoldEarned: Int = 0
@@ -76,6 +87,15 @@ final class Player {
     var lifePoints: Int = 0
     var socialPoints: Int = 0
     var creationPoints: Int = 0
+
+    /// 请假卡库存。购买后入包，使用时再选要冻结的那一天。
+    var leaveCardCount: Int = 0
+    /// 保险卡持有中。不能叠加，触发后清空，可再买。
+    var hasStreakShield: Bool = false
+    /// 已冻结进度的游戏日（yyyyMMdd）
+    var pausedDayValues: [Int] = []
+    /// 下次打开时需要告知「法术护盾已保护连胜」
+    var pendingStreakShieldAlert: Bool = false
 
     init(nickname: String = Player.defaultNickname) {
         self.id = UUID()
@@ -161,6 +181,18 @@ final class Player {
         case .life: lifePoints = clamped
         case .social: socialPoints = clamped
         case .creation: creationPoints = clamped
+        }
+    }
+
+    var pausedDaySet: Set<Int> { Set(pausedDayValues) }
+
+    func isPaused(_ day: GameDay) -> Bool {
+        pausedDayValues.contains(day.value)
+    }
+
+    func pause(_ day: GameDay) {
+        if !pausedDayValues.contains(day.value) {
+            pausedDayValues.append(day.value)
         }
     }
 }

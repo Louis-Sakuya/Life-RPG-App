@@ -8,6 +8,7 @@ struct QuestDetailView: View {
     var quest: Quest
 
     @State private var isPresentingEditor = false
+    @State private var finishCandidate: QuestTemplate?
 
     var body: some View {
         List {
@@ -22,8 +23,6 @@ struct QuestDetailView: View {
                     }
                     HStack(spacing: 6) {
                         StatPill(icon: quest.kind.iconName, text: quest.kind.title, tint: palette.accent)
-                        StatPill(icon: "star.fill", text: quest.difficulty.title, tint: .orange)
-                        StatPill(icon: "arrow.up", text: quest.priority.title, tint: .pink)
                     }
                 }
                 .padding(.vertical, 4)
@@ -39,6 +38,8 @@ struct QuestDetailView: View {
                     LabeledContent(L10n.t("quest.completed_at"), value: completedAt.formatted(date: .abbreviated, time: .shortened))
                 }
                 LabeledContent(L10n.t("quest.estimated"), value: L10n.format("quest.minutes", quest.estimatedMinutes))
+                LabeledContent(L10n.t("quest.difficulty"), value: quest.difficulty.title)
+                LabeledContent(L10n.t("quest.priority"), value: quest.priority.title)
             }
 
             if !quest.tags.isEmpty {
@@ -62,9 +63,11 @@ struct QuestDetailView: View {
                                     .foregroundStyle(Color(hex: skill.colorHex))
                                 Text(skill.localizedName)
                                 Spacer()
-                                Text(L10n.format("quest.exp_share", Int(link.expShare * 100)))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                if links.count > 1 {
+                                    Text("\(Int((link.expShare * 100).rounded()))%")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
@@ -95,6 +98,11 @@ struct QuestDetailView: View {
                 Button(L10n.t("quest.move_tomorrow")) {
                     store.reschedule(quest, to: store.container.calendar.adding(days: 1, to: store.today))
                 }
+                if let template, !template.isFinished {
+                    Button(L10n.t("quest.finish.series")) {
+                        finishCandidate = template
+                    }
+                }
                 Button(L10n.t("quest.delete"), role: .destructive) {
                     store.deleteQuest(quest)
                     dismiss()
@@ -103,6 +111,7 @@ struct QuestDetailView: View {
         }
         .navigationTitle(L10n.t("quest.detail.title"))
         .navigationBarTitleDisplayMode(.inline)
+        .rewardFeedback(for: quest.id)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(L10n.t("common.edit")) { isPresentingEditor = true }
@@ -111,5 +120,10 @@ struct QuestDetailView: View {
         .sheet(isPresented: $isPresentingEditor) {
             QuestEditorView(quest: quest, defaultDay: quest.scheduledDay)
         }
+        .recurringFinishConfirmation(template: $finishCandidate)
+    }
+
+    private var template: QuestTemplate? {
+        quest.templateID.flatMap(store.template(id:))
     }
 }

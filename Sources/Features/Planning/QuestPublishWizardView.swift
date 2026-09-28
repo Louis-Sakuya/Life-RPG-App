@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 工会接待处。用问答把一次发布拆成：任务栏 → 主线形态 → 填写细节。
+/// 工会接待处。主线仍走「栏位 → 形态 → 细节」；支线只填标题，回车即可张贴。
 struct QuestPublishWizardView: View {
     enum BoardKind {
         case main, side
@@ -43,10 +43,9 @@ struct QuestPublishWizardView: View {
 
     @State private var title = ""
     @State private var detail = ""
-    @State private var difficulty: QuestDifficulty = .normal
-    @State private var priority: QuestPriority = .normal
     @State private var estimatedMinutes = 30
-    @State private var shares: [UUID: Double] = [:]
+    @State private var priority: QuestPriority = .normal
+    @State private var selectedSkillIDs: Set<UUID> = []
     @State private var startDate = Date()
     @State private var endDate = Date()
     @State private var dueTime = Date()
@@ -59,8 +58,10 @@ struct QuestPublishWizardView: View {
     @State private var timesPerWeek = 3
     @State private var monthDays: Set<Int> = [1]
     @State private var startPolicy: RecurrenceStartPolicy = .thisPeriod
+    @State private var maxCompletionsPerDay = 1
 
     @State private var didLoad = false
+    @FocusState private var titleFocused: Bool
 
     private var calendar: GameCalendar { store.container.calendar }
     private var goldTint: Color { Color(hex: "#D4A017") }
@@ -70,10 +71,11 @@ struct QuestPublishWizardView: View {
     }
 
     private var canPublish: Bool {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        if store.skills.isEmpty { return true }
-        return SkillShareMath.isFullAllocation(shares)
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var skillShares: [SkillShare] {
+        SkillShareMath.selected(store.skills.map(\.id).filter { selectedSkillIDs.contains($0) }).asSkillShares
     }
 
     var body: some View {
@@ -85,14 +87,20 @@ struct QuestPublishWizardView: View {
                 case .mainKind:
                     mainKindStep
                 case .details:
-                    detailsStep
+                    if boardKind == .side {
+                        sideComposer
+                    } else {
+                        detailsStep
+                    }
                 }
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(step == .boardKind ? L10n.t("wizard.cancel") : L10n.t("common.back"), action: goBack)
+                if !store.isTutorialActive {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(step == .boardKind ? L10n.t("wizard.cancel") : L10n.t("common.back"), action: goBack)
+                    }
                 }
                 if step == .details {
                     ToolbarItem(placement: .confirmationAction) {
@@ -102,6 +110,11 @@ struct QuestPublishWizardView: View {
                 }
             }
             .onAppear(perform: bootstrap)
+            .onChange(of: store.tutorialStep) { _, step in
+                applyTutorial(step)
+            }
+            .interactiveDismissDisabled(store.isTutorialActive)
+            .tutorialCoach(host: .wizard)
         }
     }
 
@@ -109,7 +122,9 @@ struct QuestPublishWizardView: View {
         switch step {
         case .boardKind: return L10n.t("wizard.title.publish")
         case .mainKind: return L10n.t("wizard.title.main_kind")
-        case .details: return isLongTerm ? L10n.t("wizard.title.repeat") : L10n.t("wizard.title.details")
+        case .details:
+            if boardKind == .side { return L10n.t("wizard.title.side") }
+            return isLongTerm ? L10n.t("wizard.title.repeat") : L10n.t("wizard.title.details")
         }
     }
 
@@ -134,6 +149,7 @@ struct QuestPublishWizardView: View {
                     boardKind = .main
                     step = .mainKind
                 }
+                .tutorialAnchor(.wizardMain)
 
                 GuildChoiceCard(
                     icon: "bolt.fill",
@@ -146,6 +162,7 @@ struct QuestPublishWizardView: View {
                     prepareDetails()
                     step = .details
                 }
+                .tutorialAnchor(.wizardSide)
             }
             .padding(20)
         }
@@ -186,13 +203,63 @@ struct QuestPublishWizardView: View {
                     prepareDetails()
                     step = .details
                 }
+                .tutorialAnchor(.wizardUrgent)
             }
             .padding(20)
         }
         .background(Color(.systemGroupedBackground))
     }
 
-    // MARK: - C / D. 细节
+    // MARK: - 支线：标题 + 回车
+
+    private var sideComposer: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Text(L10n.t("wizard.hint.side"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 10) {
+                    TextField(L10n.t("wizard.side.placeholder"), text: $title)
+                        .textFieldStyle(.plain)
+                        .font(.title3.weight(.medium))
+                        .submitLabel(.go)
+                        .focused($titleFocused)
+                        .onSubmit(publish)
+
+                    Button(action: publish) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(canPublish ? Color.orange : Color.secondary.opacity(0.35))
+                    }
+                    .disabled(!canPublish)
+                    .accessibilityLabel(L10n.t("wizard.post"))
+                }
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(.secondarySystemGroupedBackground))
+                )
+
+                if !store.skills.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(L10n.t("wizard.skill_pick"))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        SkillPickList(skills: store.skills, selectedIDs: $selectedSkillIDs)
+                    }
+                }
+
+                rewardPreview
+            }
+            .padding(20)
+        }
+        .background(Color(.systemGroupedBackground))
+        .onAppear { titleFocused = true }
+    }
+
+    // MARK: - C / D. 主线细节
 
     private var detailsStep: some View {
         Form {
@@ -203,29 +270,15 @@ struct QuestPublishWizardView: View {
                 TextField(L10n.t("wizard.field.title"), text: $title)
                 TextField(L10n.t("wizard.field.detail"), text: $detail, axis: .vertical)
                     .lineLimit(1...4)
+                QuestChallengeFields(estimatedMinutes: $estimatedMinutes, priority: $priority)
             } header: {
                 Text(L10n.t("wizard.notice"))
-            }
-
-            Section(L10n.t("wizard.difficulty_section")) {
-                Picker(L10n.t("common.difficulty"), selection: $difficulty) {
-                    ForEach(QuestDifficulty.allCases) { Text($0.title).tag($0) }
-                }
-                HStack {
-                    DifficultyStars(value: difficulty.rawValue, tint: .orange)
-                    Text(difficultyRewardText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                Picker(L10n.t("common.priority"), selection: $priority) {
-                    ForEach(QuestPriority.allCases) { Text($0.title).tag($0) }
-                }
-                Stepper(L10n.format("quest.estimated_stepper", estimatedMinutes), value: $estimatedMinutes, in: 5...600, step: 5)
+            } footer: {
+                Text(L10n.t("quest.difficulty.auto_footer"))
             }
 
             Section {
-                SkillShareEditor(skills: store.skills, shares: $shares, requiresFullAllocation: true)
+                SkillPickList(skills: store.skills, selectedIDs: $selectedSkillIDs)
             } header: {
                 Text(L10n.t("wizard.skill_header"))
             } footer: {
@@ -257,16 +310,12 @@ struct QuestPublishWizardView: View {
 
     private var oneShotScheduleSection: some View {
         Section {
-            if boardKind == .side {
-                LabeledContent(L10n.t("wizard.start_date"), value: L10n.t("wizard.start_today_fixed"))
-            } else {
-                DatePicker(
-                    L10n.t("wizard.start_date"),
-                    selection: $startDate,
-                    in: calendar.displayDate(of: store.today)...,
-                    displayedComponents: .date
-                )
-            }
+            DatePicker(
+                L10n.t("wizard.start_date"),
+                selection: $startDate,
+                in: calendar.displayDate(of: store.today)...,
+                displayedComponents: .date
+            )
             DatePicker(L10n.t("wizard.due_time"), selection: $dueTime, displayedComponents: .hourAndMinute)
         } header: {
             Text(L10n.t("wizard.schedule"))
@@ -276,9 +325,6 @@ struct QuestPublishWizardView: View {
     }
 
     private var oneShotFooter: String {
-        if boardKind == .side {
-            return L10n.t("wizard.hint.side")
-        }
         let day = calendar.gameDay(fromDisplayDate: startDate)
         if day > store.today {
             return L10n.t("wizard.hint.ahead")
@@ -308,7 +354,8 @@ struct QuestPublishWizardView: View {
                 weekdays: $weekdays,
                 timesPerWeek: $timesPerWeek,
                 monthDays: $monthDays,
-                startPolicy: $startPolicy
+                startPolicy: $startPolicy,
+                maxCompletionsPerDay: $maxCompletionsPerDay
             )
 
             Section {
@@ -353,7 +400,7 @@ struct QuestPublishWizardView: View {
         let day = previewScheduledDay
         let engine = RewardEngine(config: store.container.config)
         let context = RewardContext(
-            difficulty: difficulty,
+            difficulty: .fromEstimatedMinutes(estimatedMinutes),
             priority: priority,
             estimatedMinutes: estimatedMinutes,
             isPlannedAhead: isLongTerm || day > store.today,
@@ -362,7 +409,7 @@ struct QuestPublishWizardView: View {
             dueAt: previewDueAt,
             completedAt: previewDueAt.addingTimeInterval(-60),
             globalStreakDays: store.player.loginStreakCurrent,
-            skillShares: shares.asSkillShares
+            skillShares: skillShares
         )
         let result = engine.preview(context)
 
@@ -420,12 +467,6 @@ struct QuestPublishWizardView: View {
         }
     }
 
-    private var difficultyRewardText: String {
-        let exp = Int(store.container.config.balance.baseEXP(for: difficulty).rounded())
-        let gold = Int((Double(exp) * store.container.config.balance.goldRatio).rounded())
-        return L10n.format("wizard.base_reward", exp, gold)
-    }
-
     private func bootstrap() {
         guard !didLoad else { return }
         didLoad = true
@@ -439,6 +480,27 @@ struct QuestPublishWizardView: View {
                 step = .mainKind
             }
         }
+        applyTutorial(store.tutorialStep)
+    }
+
+    private func applyTutorial(_ tutorial: TutorialStep?) {
+        guard store.isTutorialActive, let tutorial else { return }
+        switch tutorial {
+        case .pickUrgent:
+            boardKind = .main
+            step = .mainKind
+        case .fillMain:
+            boardKind = .main
+            mainKind = .urgent
+            prepareDetails()
+            step = .details
+        case .fillSide:
+            boardKind = .side
+            prepareDetails()
+            step = .details
+        default:
+            break
+        }
     }
 
     private func prepareDetails() {
@@ -450,9 +512,6 @@ struct QuestPublishWizardView: View {
             startDate = calendar.displayDate(of: calendar.adding(days: 1, to: store.today))
             endDate = calendar.displayDate(of: calendar.adding(days: 7, to: store.today))
             recurrenceEndDate = endDate
-        }
-        if shares.isEmpty {
-            shares = SkillShareMath.equalShares(ids: store.skills.map(\.id))
         }
     }
 
@@ -478,7 +537,6 @@ struct QuestPublishWizardView: View {
     private func publish() {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        let skillShares = shares.asSkillShares
 
         if isLongTerm, longTermMode == .recurrence {
             let recurrence = RecurrenceEditor.rule(
@@ -491,14 +549,15 @@ struct QuestPublishWizardView: View {
             store.createTemplate(
                 title: trimmed,
                 detail: detail,
-                difficulty: difficulty,
+                difficulty: .fromEstimatedMinutes(estimatedMinutes),
                 priority: priority,
                 estimatedMinutes: estimatedMinutes,
                 recurrence: recurrence,
                 startPolicy: startPolicy,
                 skillShares: skillShares,
                 startDay: store.today,
-                endDay: hasEndDay ? calendar.gameDay(fromDisplayDate: recurrenceEndDate) : nil
+                endDay: hasEndDay ? calendar.gameDay(fromDisplayDate: recurrenceEndDate) : nil,
+                maxCompletionsPerDay: maxCompletionsPerDay
             )
         } else if isLongTerm, longTermMode == .dateRange {
             let startDay = calendar.gameDay(fromDisplayDate: startDate)
@@ -506,7 +565,7 @@ struct QuestPublishWizardView: View {
             store.createQuest(
                 title: trimmed,
                 detail: detail,
-                difficulty: difficulty,
+                difficulty: .fromEstimatedMinutes(estimatedMinutes),
                 priority: priority,
                 estimatedMinutes: estimatedMinutes,
                 scheduledDay: startDay,
@@ -519,8 +578,8 @@ struct QuestPublishWizardView: View {
             store.createQuest(
                 title: trimmed,
                 detail: detail,
-                difficulty: difficulty,
-                priority: priority,
+                difficulty: .fromEstimatedMinutes(estimatedMinutes),
+                priority: boardKind == .side ? .normal : priority,
                 estimatedMinutes: estimatedMinutes,
                 scheduledDay: day,
                 dueAt: calendar.date(on: day, matchingTimeOf: dueTime),

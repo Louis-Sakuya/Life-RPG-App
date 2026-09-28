@@ -18,6 +18,17 @@ enum SkillShareMath {
         abs(total(shares) - 1) <= tolerance
     }
 
+    /// 发布时只选一项技能：该项拿满 100%。
+    static func single(_ id: UUID?) -> [UUID: Double] {
+        guard let id else { return [:] }
+        return [id: 1]
+    }
+
+    /// 已选技能平分 100%。`ids` 的顺序决定余数落在哪一项。
+    static func selected(_ ids: [UUID]) -> [UUID: Double] {
+        equalShares(ids: ids)
+    }
+
     static func equalShares(ids: [UUID]) -> [UUID: Double] {
         guard !ids.isEmpty else { return [:] }
         if ids.count == 1 { return [ids[0]: 1] }

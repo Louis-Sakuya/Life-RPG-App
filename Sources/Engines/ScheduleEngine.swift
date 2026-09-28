@@ -17,8 +17,7 @@ enum ScheduleEngine {
         case .daily:
             return calendar.adding(days: 1, to: startDay)
         case .weekly, .timesPerWeek:
-            let thisWeek = calendar.startOfWeek(for: startDay)
-            return calendar.adding(days: 7, to: thisWeek)
+            return calendar.adding(days: 7, to: startDay)
         case .monthly:
             let nextMonthMonth = startDay.month == 12 ? 1 : startDay.month + 1
             let nextMonthYear = startDay.month == 12 ? startDay.year + 1 : startDay.year
@@ -42,13 +41,9 @@ enum ScheduleEngine {
             guard !weekdays.isEmpty else { return false }
             return weekdays.contains(calendar.weekday(of: day))
 
-        case .timesPerWeek(let count):
-            // 不指定具体星期时，把配额固定放在每周的前 n 天。
-            // 这样生成结果是确定的，补算与重装应用都会得到同一份日程。
-            let quota = max(1, min(7, count))
-            let weekStart = calendar.startOfWeek(for: day)
-            let offset = calendar.daysBetween(weekStart, day)
-            return offset < quota
+        case .timesPerWeek:
+            // 每周 n 次是配额，不绑死具体星期。能否再完成一次由每日上限与剩余次数决定。
+            return true
 
         case .monthly(let days):
             guard !days.isEmpty else { return false }

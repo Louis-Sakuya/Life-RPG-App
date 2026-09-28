@@ -19,7 +19,7 @@ struct CelebrationOverlay: ViewModifier {
                     )
                     .id(event.id)
                     .task(id: event.id) {
-                        try? await Task.sleep(for: .seconds(2.4))
+                        try? await Task.sleep(for: .seconds(3.6))
                         if !store.pendingFortunes.isEmpty {
                             store.pendingFortunes.removeFirst()
                         }
@@ -34,7 +34,7 @@ struct CelebrationOverlay: ViewModifier {
                     )
                     .id(event.id)
                     .task(id: event.id) {
-                        try? await Task.sleep(for: .seconds(2.2))
+                        try? await Task.sleep(for: .seconds(3.6))
                         if !store.pendingLevelUps.isEmpty {
                             store.pendingLevelUps.removeFirst()
                         }
@@ -47,7 +47,7 @@ struct CelebrationOverlay: ViewModifier {
                     )
                     .id(unlock.id)
                     .task(id: unlock.id) {
-                        try? await Task.sleep(for: .seconds(2.2))
+                        try? await Task.sleep(for: .seconds(3.6))
                         if !store.pendingUnlocks.isEmpty {
                             store.pendingUnlocks.removeFirst()
                         }
@@ -83,7 +83,10 @@ struct CelebrationOverlay: ViewModifier {
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+                .shadow(color: palette.accent.opacity(0.22), radius: 14, y: 5)
+        )
+        .overlay(
+            OrnateBorder(cornerRadius: 16, colors: palette.ornateColors)
         )
         .padding(.horizontal, 16)
         .transition(.move(edge: .top).combined(with: .opacity))

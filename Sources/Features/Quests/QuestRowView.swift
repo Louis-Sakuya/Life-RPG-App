@@ -33,12 +33,14 @@ struct QuestRowView: View {
 
                 HStack(spacing: 6) {
                     StatPill(icon: quest.kind.iconName, text: quest.kind.title, tint: kindTint)
-                    DifficultyStars(value: quest.difficultyRaw, tint: .orange)
-                    if quest.priority == .critical {
-                        StatPill(icon: "exclamationmark", text: L10n.t("quest.priority.critical"), tint: .red)
-                    }
                     if quest.isOverdue && !quest.isCompleted {
                         StatPill(icon: "clock.badge.exclamationmark", text: L10n.t("quest.status.overdue"), tint: .red)
+                    }
+                    if let weekly = weeklyRemainingText {
+                        StatPill(icon: "repeat", text: weekly, tint: .teal)
+                    }
+                    if let daily = dailyCapText {
+                        StatPill(icon: "sun.max", text: daily, tint: .orange)
                     }
                     if let remaining = remainingText {
                         StatPill(icon: "timer", text: remaining, tint: .secondary)
@@ -60,6 +62,7 @@ struct QuestRowView: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+        .rewardFeedback(for: quest.id)
     }
 
     /// 预估收益直接展示在卡片上。玩家在决定"先做哪件事"之前就能看到差异，
@@ -92,6 +95,22 @@ struct QuestRowView: View {
         case .side: return .orange
         case .repeating: return .teal
         }
+    }
+
+    private var weeklyRemainingText: String? {
+        guard let progress = store.repeatingProgress(for: quest) else { return nil }
+        return L10n.format("quest.remaining.week", progress.remaining)
+    }
+
+    private var dailyCapText: String? {
+        guard store.repeatingProgress(for: quest) != nil else { return nil }
+        if store.isTodayPaused() {
+            return L10n.t("quest.paused.today")
+        }
+        if let progress = store.repeatingProgress(for: quest), progress.dailyLeft <= 0, !quest.isCompleted {
+            return L10n.t("quest.daily_cap.reached")
+        }
+        return nil
     }
 
     private var remainingText: String? {

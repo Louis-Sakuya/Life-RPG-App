@@ -15,6 +15,7 @@ struct HabitListView: View {
                     action: { isPresentingEditor = true }
                 )
                 .listRowBackground(Color.clear)
+                .tutorialAnchor(.growthAdd)
             }
 
             ForEach(store.habits) { habit in
@@ -31,6 +32,7 @@ struct HabitListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
     }
 }
 
@@ -73,14 +75,6 @@ struct HabitDetailView: View {
 
             Section(L10n.t("common.settings")) {
                 LabeledContent(L10n.t("habit.daily_target"), value: L10n.format("habit.times_value", habit.dailyTarget))
-                if habit.hasReminder {
-                    LabeledContent(
-                        L10n.t("settings.reminder_time"),
-                        value: String(format: "%02d:%02d", habit.reminderHour, habit.reminderMinute)
-                    )
-                } else {
-                    LabeledContent(L10n.t("settings.reminder_time"), value: L10n.t("habit.reminder_unset"))
-                }
             }
 
             Section {

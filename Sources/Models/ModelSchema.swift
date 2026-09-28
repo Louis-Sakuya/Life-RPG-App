@@ -17,6 +17,7 @@ enum ModelSchemaRegistry {
         RewardTransaction.self,
         Reminder.self,
         OwnedItem.self,
+        FailedQuestRecord.self,
         AppSettings.self
     ]
 

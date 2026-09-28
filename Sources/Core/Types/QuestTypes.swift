@@ -34,6 +34,17 @@ enum QuestDifficulty: Int, Codable, CaseIterable, Identifiable, Sendable {
     var id: Int { rawValue }
 
     var title: String { L10n.t("quest.difficulty.\(String(describing: self))") }
+
+    /// 按预计时长自动定难度。时长越长，基础奖励越高。
+    static func fromEstimatedMinutes(_ minutes: Int) -> QuestDifficulty {
+        switch max(0, minutes) {
+        case ...15: return .trivial
+        case 16...29: return .easy
+        case 30...59: return .normal
+        case 60...119: return .hard
+        default: return .epic
+        }
+    }
 }
 
 enum QuestPriority: Int, Codable, CaseIterable, Identifiable, Sendable {
@@ -115,4 +126,10 @@ enum RecurrenceStartPolicy: String, Codable, CaseIterable, Sendable {
         case .nextPeriod: return L10n.t("recurrence.next_period")
         }
     }
+}
+
+/// 当前周期窗口是在冲配额，还是在补上一窗口的欠债
+enum RecurringPeriodState: String, Codable, CaseIterable, Sendable {
+    case active
+    case grace
 }

@@ -52,6 +52,7 @@ struct SkillListView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .alert(
             L10n.t("skill.delete.title"),
             isPresented: Binding(

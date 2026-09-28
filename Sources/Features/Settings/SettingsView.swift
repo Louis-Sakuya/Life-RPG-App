@@ -63,57 +63,21 @@ struct SettingsView: View {
                 Text(L10n.t("settings.time_footer"))
             }
 
-            Section(L10n.t("settings.notifications")) {
+            Section {
                 Toggle(L10n.t("settings.enable_notifications"), isOn: Binding(
                     get: { settings.notificationsEnabled },
                     set: { settings.notificationsEnabled = $0; store.save(); store.syncNotifications() }
                 ))
-                Toggle(L10n.t("settings.planning_reminder"), isOn: Binding(
-                    get: { settings.planningReminderEnabled },
-                    set: { settings.planningReminderEnabled = $0; store.save(); store.syncNotifications() }
-                ))
-                if settings.planningReminderEnabled {
-                    DatePicker(
-                        L10n.t("settings.reminder_time"),
-                        selection: Binding(
-                            get: { time(hour: settings.planningReminderHour, minute: settings.planningReminderMinute) },
-                            set: { newValue in
-                                let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                                settings.planningReminderHour = components.hour ?? 21
-                                settings.planningReminderMinute = components.minute ?? 0
-                                store.save()
-                                store.syncNotifications()
-                            }
-                        ),
-                        displayedComponents: .hourAndMinute
-                    )
-                }
-                Toggle(L10n.t("settings.bedtime"), isOn: Binding(
-                    get: { settings.bedtimeReminderEnabled },
-                    set: { settings.bedtimeReminderEnabled = $0; store.save(); store.syncNotifications() }
-                ))
-                if settings.bedtimeReminderEnabled {
-                    DatePicker(
-                        L10n.t("settings.bedtime_time"),
-                        selection: Binding(
-                            get: { time(hour: settings.bedtimeReminderHour, minute: settings.bedtimeReminderMinute) },
-                            set: { newValue in
-                                let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                                settings.bedtimeReminderHour = components.hour ?? 23
-                                settings.bedtimeReminderMinute = components.minute ?? 30
-                                store.save()
-                                store.syncNotifications()
-                            }
-                        ),
-                        displayedComponents: .hourAndMinute
-                    )
-                }
                 Button(L10n.t("settings.request_permission")) {
                     Task {
                         await store.container.notifications.requestAuthorization()
                         store.syncNotifications()
                     }
                 }
+            } header: {
+                Text(L10n.t("settings.notifications"))
+            } footer: {
+                Text(L10n.t("settings.notifications_footer"))
             }
 
             Section {
@@ -198,7 +162,7 @@ struct SettingsView: View {
         .alert(L10n.t("settings.reset.title"), isPresented: $confirmReset) {
             Button(L10n.t("common.cancel"), role: .cancel) {}
             Button(L10n.t("settings.reset.confirm"), role: .destructive) {
-                resetAccount()
+                store.requestAccountReset()
             }
         } message: {
             Text(L10n.t("settings.reset.message"))
@@ -207,10 +171,6 @@ struct SettingsView: View {
 
     private var currentThemeName: String {
         store.container.config.shop.item(id: store.player.currentThemeID)?.localizedName ?? L10n.t("settings.default_theme")
-    }
-
-    private func time(hour: Int, minute: Int) -> Date {
-        Calendar.current.date(bySettingHour: max(0, min(23, hour)), minute: minute, second: 0, of: Date()) ?? Date()
     }
 
     private func export(_ make: () throws -> URL) {
@@ -230,14 +190,6 @@ struct SettingsView: View {
             message = L10n.t("settings.restore_ok")
         } catch {
             message = L10n.format("settings.restore_failed", error.localizedDescription)
-        }
-    }
-
-    private func resetAccount() {
-        do {
-            try store.resetAccount()
-        } catch {
-            message = L10n.format("settings.reset_failed", error.localizedDescription)
         }
     }
 }

@@ -484,6 +484,8 @@ def main() -> None:
         "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
         "GENERATE_INFOPLIST_FILE": "YES",
         "INFOPLIST_KEY_CFBundleDisplayName": '"Life RPG"',
+        "INFOPLIST_KEY_NSCameraUsageDescription": '"用于拍摄自定义角色头像"',
+        "INFOPLIST_KEY_NSPhotoLibraryUsageDescription": '"用于选择自定义角色头像"',
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation": "YES",
         "INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents": "YES",
         "INFOPLIST_KEY_UILaunchScreen_Generation": "YES",

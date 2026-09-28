@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - 卡片容器
 
 struct Card<Content: View>: View {
+    @Environment(\.palette) private var palette
     var content: Content
 
     init(@ViewBuilder content: () -> Content) {
@@ -16,6 +17,13 @@ struct Card<Content: View>: View {
             .background(
                 RoundedRectangle(cornerRadius: AppMetrics.cardCornerRadius, style: .continuous)
                     .fill(Color(.secondarySystemGroupedBackground))
+                    .shadow(color: palette.accent.opacity(0.12), radius: 10, y: 4)
+            )
+            .overlay(
+                OrnateBorder(
+                    cornerRadius: AppMetrics.cardCornerRadius,
+                    colors: palette.ornateColors
+                )
             )
     }
 }
@@ -124,6 +132,14 @@ struct ProgressBar: View {
                 Capsule()
                     .fill(gradient)
                     .frame(width: max(0, min(1, value)) * geometry.size.width)
+                    .overlay(alignment: .top) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.28))
+                            .frame(height: max(2, height * 0.35))
+                            .padding(.horizontal, 4)
+                            .padding(.top, 1)
+                    }
+                    .clipShape(Capsule())
             }
         }
         .frame(height: height)
@@ -204,6 +220,29 @@ struct TagChip: View {
             .padding(.vertical, 3)
             .background(Capsule().fill(Color.primary.opacity(0.08)))
             .foregroundStyle(.secondary)
+    }
+}
+
+/// 荣誉页与成就/称号详情共用的卡片底。
+struct HonorSurface<Content: View>: View {
+    var content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+                    )
+            )
     }
 }
 
@@ -386,6 +425,122 @@ extension Dictionary where Key == UUID, Value == Double {
     var asSkillShares: [SkillShare] {
         compactMap { key, value in
             value > 0 ? SkillShare(skillID: key, expShare: value) : nil
+        }
+    }
+}
+
+/// 发布任务时可点多项技能，完成后经验平均分给所选技能。
+struct SkillPickList: View {
+    var skills: [Skill]
+    @Binding var selectedIDs: Set<UUID>
+
+    var body: some View {
+        if skills.isEmpty {
+            Text(L10n.t("skill.no_share"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(spacing: 8) {
+                ForEach(skills) { skill in
+                    let selected = selectedIDs.contains(skill.id)
+                    let tint = Color(hex: skill.colorHex)
+                    Button {
+                        if selected {
+                            selectedIDs.remove(skill.id)
+                        } else {
+                            selectedIDs.insert(skill.id)
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: skill.iconName)
+                                .foregroundStyle(selected ? Color.white : tint)
+                                .frame(width: 22)
+                            Text(skill.localizedName)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(selected ? Color.white : Color.primary)
+                            Spacer()
+                            if selected {
+                                Image(systemName: "checkmark")
+                                    .font(.footnote.weight(.bold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(selected ? tint : tint.opacity(0.12))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+}
+
+/// 主线任务：时长决定难度，优先级由玩家自己选。
+struct QuestChallengeFields: View {
+    @Binding var estimatedMinutes: Int
+    @Binding var priority: QuestPriority
+
+    var autoDifficulty: QuestDifficulty {
+        .fromEstimatedMinutes(estimatedMinutes)
+    }
+
+    var body: some View {
+        Stepper(
+            L10n.format("quest.estimated_stepper", estimatedMinutes),
+            value: $estimatedMinutes,
+            in: 5...600,
+            step: 5
+        )
+        LabeledContent(L10n.t("quest.difficulty"), value: autoDifficulty.title)
+        Picker(L10n.t("quest.priority"), selection: $priority) {
+            ForEach(QuestPriority.allCases) { Text($0.title).tag($0) }
+        }
+    }
+}
+
+extension View {
+    /// 结束远行前弹出旅途天数与归途奖励，避免误触。
+    func recurringFinishConfirmation(template: Binding<QuestTemplate?>) -> some View {
+        modifier(RecurringFinishConfirmationModifier(template: template))
+    }
+}
+
+private struct RecurringFinishConfirmationModifier: ViewModifier {
+    @Environment(GameStore.self) private var store
+    @Binding var template: QuestTemplate?
+
+    func body(content: Content) -> some View {
+        content.alert(
+            L10n.t("quest.finish.title"),
+            isPresented: Binding(
+                get: { template != nil },
+                set: { if !$0 { template = nil } }
+            )
+        ) {
+            Button(L10n.t("quest.finish.action")) {
+                if let template {
+                    store.finishTemplate(template)
+                }
+            }
+            Button(L10n.t("common.cancel"), role: .cancel) {}
+        } message: {
+            if let template {
+                let reward = store.previewFinishTemplate(template)
+                Text(
+                    L10n.format(
+                        "quest.finish.message",
+                        reward.tier.title,
+                        reward.durationDays,
+                        reward.completions,
+                        reward.exp,
+                        reward.gold
+                    )
+                )
+            }
         }
     }
 }

@@ -46,6 +46,11 @@ final class AppSettings {
     /// 是否已经走完首次冒险者设定。老存档由 `SeedService` 在启动时补记。
     var hasCompletedOnboarding: Bool = false
 
+    /// 是否已经走完初始化后的强制新手引导。
+    var hasCompletedTutorial: Bool = false
+    /// 当前引导步骤。空字符串表示尚未开始或已结束。
+    var tutorialStepRaw: String = ""
+
     /// 测试用：商店不再检查等级，金币视为无限，购买不扣费。真实余额不会被改写。
     var testShopSandbox: Bool = false
 

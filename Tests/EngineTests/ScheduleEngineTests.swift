@@ -45,21 +45,11 @@ final class ScheduleEngineTests: XCTestCase {
         XCTAssertFalse(ScheduleEngine.occurs(rule: rule, on: wednesday, anchor: monday, calendar: calendar))
     }
 
-    /// "每周 3 次"必须是确定性的，否则补算与重装应用会生成不同的日程
-    func testTimesPerWeekIsDeterministic() {
+    func testTimesPerWeekOccursAnyDayAfterAnchor() {
         let rule = RecurrenceRule.timesPerWeek(count: 3)
         XCTAssertTrue(ScheduleEngine.occurs(rule: rule, on: monday, anchor: monday, calendar: calendar))
-        XCTAssertTrue(ScheduleEngine.occurs(rule: rule, on: tuesday, anchor: monday, calendar: calendar))
-        XCTAssertTrue(ScheduleEngine.occurs(rule: rule, on: wednesday, anchor: monday, calendar: calendar))
-        XCTAssertFalse(ScheduleEngine.occurs(rule: rule, on: calendar.adding(days: 3, to: monday), anchor: monday, calendar: calendar))
-        XCTAssertFalse(ScheduleEngine.occurs(rule: rule, on: sunday, anchor: monday, calendar: calendar))
-    }
-
-    func testTimesPerWeekProducesExactCountPerWeek() {
-        let rule = RecurrenceRule.timesPerWeek(count: 3)
-        let range = monday...calendar.adding(days: 6, to: monday)
-        let occurrences = ScheduleEngine.occurrences(rule: rule, in: range, anchor: monday, calendar: calendar)
-        XCTAssertEqual(occurrences.count, 3)
+        XCTAssertTrue(ScheduleEngine.occurs(rule: rule, on: sunday, anchor: monday, calendar: calendar))
+        XCTAssertFalse(ScheduleEngine.occurs(rule: rule, on: calendar.adding(days: -1, to: monday), anchor: monday, calendar: calendar))
     }
 
     func testMonthlyMatchesDayOfMonth() {
@@ -81,14 +71,14 @@ final class ScheduleEngineTests: XCTestCase {
         XCTAssertEqual(start, wednesday)
     }
 
-    func testNextPeriodPushesWeeklyToNextMonday() {
+    func testNextPeriodPushesWeeklyBySevenDays() {
         let start = ScheduleEngine.effectiveStartDay(
             rule: .weekly(weekdays: [2]),
             startDay: wednesday,
             policy: .nextPeriod,
             calendar: calendar
         )
-        XCTAssertEqual(start, GameDay(year: 2026, month: 8, day: 10))
+        XCTAssertEqual(start, GameDay(year: 2026, month: 8, day: 12))
     }
 
     func testNextPeriodPushesMonthlyToFirstOfNextMonth() {

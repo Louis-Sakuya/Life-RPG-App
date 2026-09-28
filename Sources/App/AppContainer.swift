@@ -51,6 +51,7 @@ final class AppContainer {
 
         let context = ModelContext(container)
         self.context = context
+        ExportService.consumePendingResetIfNeeded(context: context, config: config)
 
         let settings = PlayerRepository(context: context).settings()
         let calendar = GameCalendar(dayStartHour: settings.dayStartHour)

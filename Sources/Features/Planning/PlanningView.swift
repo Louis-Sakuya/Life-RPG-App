@@ -2,12 +2,36 @@ import SwiftUI
 
 /// 已张贴委托的日历。真正的发布走工会问答向导；这里只负责查看某一天会出现什么。
 struct PlanningView: View {
+    private enum DayPreset: String, CaseIterable, Identifiable {
+        case today, tomorrow, custom
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .today: return L10n.t("common.today")
+            case .tomorrow: return L10n.t("common.tomorrow")
+            case .custom: return L10n.t("planning.custom_date")
+            }
+        }
+    }
+
     @Environment(GameStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
-    @State private var targetDate = Date()
+    @State private var preset: DayPreset = .tomorrow
+    @State private var customDate = Date()
     @State private var publishLaunch: QuestPublishLaunch?
     @State private var didLoad = false
+    @State private var isPresentingRepeat = false
+
+    private var earliestCustomDate: Date { dayDate(offset: 2) }
+
+    private var targetDate: Date {
+        switch preset {
+        case .today: return dayDate(offset: 0)
+        case .tomorrow: return dayDate(offset: 1)
+        case .custom: return customDate
+        }
+    }
 
     private var targetDay: GameDay {
         store.container.calendar.gameDay(fromDisplayDate: targetDate)
@@ -17,14 +41,24 @@ struct PlanningView: View {
         NavigationStack {
             List {
                 Section {
-                    Picker(L10n.t("planning.which_day"), selection: $targetDate) {
-                        Text(L10n.t("common.today")).tag(dayDate(offset: 0))
-                        Text(L10n.t("common.tomorrow")).tag(dayDate(offset: 1))
-                        Text(L10n.t("common.day_after")).tag(dayDate(offset: 2))
+                    Picker(L10n.t("planning.which_day"), selection: $preset) {
+                        ForEach(DayPreset.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
+                    .onChange(of: preset) { _, newValue in
+                        if newValue == .custom {
+                            clampCustomDate()
+                        }
+                    }
 
-                    DatePicker(L10n.t("planning.custom_date"), selection: $targetDate, displayedComponents: .date)
+                    if preset == .custom {
+                        DatePicker(
+                            L10n.t("planning.custom_date"),
+                            selection: $customDate,
+                            in: earliestCustomDate...,
+                            displayedComponents: .date
+                        )
+                    }
                 } header: {
                     Text(L10n.t("planning.target_day"))
                 } footer: {
@@ -54,6 +88,11 @@ struct PlanningView: View {
                     } label: {
                         Label(L10n.t("quest.publish"), systemImage: "scroll.fill")
                     }
+                    Button {
+                        isPresentingRepeat = true
+                    } label: {
+                        Label(L10n.t("quest.repeat.title"), systemImage: "repeat")
+                    }
                 }
 
                 if !repeatPreview.isEmpty {
@@ -79,10 +118,14 @@ struct PlanningView: View {
             .sheet(item: $publishLaunch) { launch in
                 QuestPublishWizardView(initialBoardKind: launch.boardKind)
             }
+            .sheet(isPresented: $isPresentingRepeat) {
+                RepeatTemplateEditorView()
+            }
             .onAppear {
                 guard !didLoad else { return }
                 didLoad = true
-                targetDate = dayDate(offset: 1)
+                preset = .tomorrow
+                customDate = earliestCustomDate
             }
         }
     }
@@ -114,6 +157,12 @@ struct PlanningView: View {
                 )
             }
             .map(\.title)
+    }
+
+    private func clampCustomDate() {
+        if customDate < earliestCustomDate {
+            customDate = earliestCustomDate
+        }
     }
 
     private func dayDate(offset: Int) -> Date {

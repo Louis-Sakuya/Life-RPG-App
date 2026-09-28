@@ -11,7 +11,7 @@
     {
       "id": "same_day",
       "group": "planning",
-      "value": -0.5,
+      "value": -0.2,
       "label": "当天临时",
       "detail": "任务在当天临时创建"
     },
@@ -25,7 +25,7 @@
     {
       "id": "overdue",
       "group": "timeliness",
-      "value": -0.3,
+      "value": -0.5,
       "label": "延期完成",
       "detail": "超过截止时间才完成"
     },

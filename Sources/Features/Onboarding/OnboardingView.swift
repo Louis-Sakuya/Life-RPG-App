@@ -12,6 +12,8 @@ struct OnboardingView: View {
 
     @State private var step: Step = .title
     @State private var nickname = ""
+    @State private var avatarSymbol = Player.defaultAvatarSymbol
+    @State private var avatarImageData: Data?
     @State private var drafts: [OnboardingSkillDraft] = []
     @State private var isPresentingCustom = false
 
@@ -107,8 +109,6 @@ struct OnboardingView: View {
     private var titleStep: some View {
         ScrollView {
             VStack(spacing: 22) {
-                heroIcon("shield.lefthalf.filled", tint: palette.accent)
-
                 VStack(spacing: 8) {
                     Text(L10n.t("onboarding.welcome"))
                         .font(.largeTitle.weight(.bold))
@@ -117,6 +117,21 @@ struct OnboardingView: View {
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(L10n.t("onboarding.avatar.label"))
+                        .font(.subheadline.weight(.semibold))
+                    Text(L10n.t("onboarding.avatar.subtitle"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    AvatarPicker(symbol: $avatarSymbol, imageData: $avatarImageData, previewSize: 96)
+                        .padding(14)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color(.secondarySystemGroupedBackground))
+                        )
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -146,7 +161,6 @@ struct OnboardingView: View {
             .padding(.bottom, 16)
         }
         .scrollDismissesKeyboard(.interactively)
-        .onAppear { isTitleFocused = true }
     }
 
     // MARK: - 技能
@@ -262,7 +276,12 @@ struct OnboardingView: View {
             isTitleFocused = false
             withAnimation(.easeInOut(duration: 0.25)) { step = .skills }
         case .skills:
-            store.completeOnboarding(nickname: trimmedNickname, skills: drafts)
+            store.completeOnboarding(
+                nickname: trimmedNickname,
+                avatarSymbol: avatarSymbol,
+                avatarImageData: avatarImageData,
+                skills: drafts
+            )
         }
     }
 
@@ -280,16 +299,6 @@ struct OnboardingView: View {
         }
     }
 
-    private func heroIcon(_ name: String, tint: Color) -> some View {
-        Image(systemName: name)
-            .font(.system(size: 42, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 88, height: 88)
-            .background(
-                Circle().fill(palette.gradient)
-            )
-            .shadow(color: tint.opacity(0.35), radius: 16, y: 8)
-    }
 }
 
 private struct OnboardingPresetRow: View {

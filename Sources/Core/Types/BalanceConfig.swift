@@ -84,7 +84,7 @@ struct BalanceConfig: Codable, Sendable {
 }
 
 /// 单条奖励加成。`group` 是关键字段：同组内互斥，只有一条会生效，
-/// 避免"提前规划 +20%"与"当天临时 -50%"这类语义矛盾的加成同时叠加。
+/// 避免"提前规划 +20%"与"当天临时 -20%"这类语义矛盾的加成同时叠加。
 struct RewardModifier: Codable, Hashable, Identifiable, Sendable {
     var id: String
     var group: String
@@ -103,9 +103,9 @@ struct ModifierConfig: Codable, Sendable {
 
     static let fallback = ModifierConfig(version: 0, modifiers: [
         .init(id: ModifierID.plannedAhead, group: "planning", value: 0.2, label: "提前规划", detail: ""),
-        .init(id: ModifierID.sameDay, group: "planning", value: -0.5, label: "当天临时", detail: ""),
+        .init(id: ModifierID.sameDay, group: "planning", value: -0.2, label: "当天临时", detail: ""),
         .init(id: ModifierID.onTime, group: "timeliness", value: 0.2, label: "按时完成", detail: ""),
-        .init(id: ModifierID.overdue, group: "timeliness", value: -0.3, label: "延期完成", detail: ""),
+        .init(id: ModifierID.overdue, group: "timeliness", value: -0.5, label: "延期完成", detail: ""),
         .init(id: ModifierID.fiveStar, group: "priority", value: 0.3, label: "五星任务", detail: ""),
         .init(id: ModifierID.consecutive, group: "continuity", value: 0.1, label: "连续完成", detail: "")
     ])

@@ -8,7 +8,34 @@
       "detail": "完成你的第一个任务",
       "icon": "flag.fill",
       "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 1 }],
-      "reward": { "exp": 20, "gold": 20 }
+      "reward": { "exp": 20, "gold": 20, "titleID": "title_novice" }
+    },
+    {
+      "id": "ach_quest_10",
+      "kind": "achievement",
+      "name": "十战",
+      "detail": "累计完成 10 个任务",
+      "icon": "10.circle.fill",
+      "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 10 }],
+      "reward": { "exp": 50, "gold": 50, "titleID": "title_apprentice" }
+    },
+    {
+      "id": "ach_quest_25",
+      "kind": "achievement",
+      "name": "廿五征",
+      "detail": "累计完成 25 个任务",
+      "icon": "25.circle.fill",
+      "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 25 }],
+      "reward": { "exp": 80, "gold": 80, "titleID": "title_squire" }
+    },
+    {
+      "id": "ach_quest_50",
+      "kind": "achievement",
+      "name": "半百",
+      "detail": "累计完成 50 个任务",
+      "icon": "50.circle.fill",
+      "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 50 }],
+      "reward": { "exp": 150, "gold": 150, "titleID": "title_adventurer" }
     },
     {
       "id": "ach_quest_100",
@@ -17,7 +44,16 @@
       "detail": "累计完成 100 个任务",
       "icon": "checkmark.seal.fill",
       "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 100 }],
-      "reward": { "exp": 300, "gold": 300 }
+      "reward": { "exp": 300, "gold": 300, "titleID": "title_veteran" }
+    },
+    {
+      "id": "ach_quest_500",
+      "kind": "achievement",
+      "name": "五百炼",
+      "detail": "累计完成 500 个任务",
+      "icon": "shield.lefthalf.filled",
+      "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 500 }],
+      "reward": { "exp": 800, "gold": 800 }
     },
     {
       "id": "ach_quest_1000",
@@ -29,6 +65,24 @@
       "reward": { "exp": 2000, "gold": 2000, "titleID": "title_legend" }
     },
     {
+      "id": "ach_main_1",
+      "kind": "achievement",
+      "name": "接下契约",
+      "detail": "完成你的第一个主线任务",
+      "icon": "scroll.fill",
+      "conditions": [{ "metric": "totalMainQuestsCompleted", "comparator": "gte", "threshold": 1 }],
+      "reward": { "exp": 30, "gold": 20 }
+    },
+    {
+      "id": "ach_main_10",
+      "kind": "achievement",
+      "name": "十成契约",
+      "detail": "累计完成 10 个主线任务",
+      "icon": "map.fill",
+      "conditions": [{ "metric": "totalMainQuestsCompleted", "comparator": "gte", "threshold": 10 }],
+      "reward": { "exp": 80, "gold": 60, "titleID": "title_planner" }
+    },
+    {
       "id": "ach_main_50",
       "kind": "achievement",
       "name": "主线推进者",
@@ -36,6 +90,42 @@
       "icon": "map.fill",
       "conditions": [{ "metric": "totalMainQuestsCompleted", "comparator": "gte", "threshold": 50 }],
       "reward": { "exp": 200, "gold": 150 }
+    },
+    {
+      "id": "ach_side_10",
+      "kind": "achievement",
+      "name": "支线猎手",
+      "detail": "累计完成 10 个支线任务",
+      "icon": "star.square.fill",
+      "conditions": [{ "metric": "totalSideQuestsCompleted", "comparator": "gte", "threshold": 10 }],
+      "reward": { "exp": 50, "gold": 40, "titleID": "title_ranger" }
+    },
+    {
+      "id": "ach_habit_1",
+      "kind": "achievement",
+      "name": "初次打卡",
+      "detail": "完成第一次习惯打卡",
+      "icon": "checkmark.circle",
+      "conditions": [{ "metric": "totalHabitCheckIns", "comparator": "gte", "threshold": 1 }],
+      "reward": { "exp": 20, "gold": 20 }
+    },
+    {
+      "id": "ach_habit_10",
+      "kind": "achievement",
+      "name": "十日之功",
+      "detail": "累计打卡 10 次",
+      "icon": "repeat",
+      "conditions": [{ "metric": "totalHabitCheckIns", "comparator": "gte", "threshold": 10 }],
+      "reward": { "exp": 40, "gold": 40 }
+    },
+    {
+      "id": "ach_habit_50",
+      "kind": "achievement",
+      "name": "五十成习",
+      "detail": "累计打卡 50 次",
+      "icon": "repeat.circle",
+      "conditions": [{ "metric": "totalHabitCheckIns", "comparator": "gte", "threshold": 50 }],
+      "reward": { "exp": 120, "gold": 100, "titleID": "title_disciplined" }
     },
     {
       "id": "ach_habit_100",
@@ -47,13 +137,22 @@
       "reward": { "exp": 250, "gold": 200 }
     },
     {
+      "id": "ach_login_3",
+      "kind": "achievement",
+      "name": "三日之约",
+      "detail": "连续登录 3 天",
+      "icon": "3.circle.fill",
+      "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 3 }],
+      "reward": { "exp": 40, "gold": 40 }
+    },
+    {
       "id": "ach_login_7",
       "kind": "achievement",
       "name": "一周不辍",
       "detail": "连续登录 7 天",
       "icon": "flame.fill",
       "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 7 }],
-      "reward": { "exp": 80, "gold": 80 }
+      "reward": { "exp": 80, "gold": 80, "titleID": "title_keeper" }
     },
     {
       "id": "ach_login_30",
@@ -62,7 +161,7 @@
       "detail": "连续登录 30 天",
       "icon": "flame.fill",
       "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 30 }],
-      "reward": { "exp": 400, "gold": 400 }
+      "reward": { "exp": 400, "gold": 400, "titleID": "title_guardian" }
     },
     {
       "id": "ach_login_100",
@@ -72,6 +171,51 @@
       "icon": "flame.fill",
       "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 100 }],
       "reward": { "exp": 1500, "gold": 1500, "titleID": "title_explorer" }
+    },
+    {
+      "id": "ach_player_5",
+      "kind": "achievement",
+      "name": "启程",
+      "detail": "玩家等级达到 Lv5",
+      "icon": "leaf.fill",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 5 }],
+      "reward": { "exp": 0, "gold": 80, "titleID": "title_sprout" }
+    },
+    {
+      "id": "ach_player_10",
+      "kind": "achievement",
+      "name": "崭露头角",
+      "detail": "玩家等级达到 Lv10",
+      "icon": "sparkle",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 10 }],
+      "reward": { "exp": 0, "gold": 200 }
+    },
+    {
+      "id": "ach_player_25",
+      "kind": "achievement",
+      "name": "初露锋芒",
+      "detail": "玩家等级达到 Lv25",
+      "icon": "sparkles",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 25 }],
+      "reward": { "exp": 0, "gold": 500 }
+    },
+    {
+      "id": "ach_player_50",
+      "kind": "achievement",
+      "name": "五十重楼",
+      "detail": "玩家等级达到 Lv50",
+      "icon": "building.columns.fill",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 50 }],
+      "reward": { "exp": 0, "gold": 1500, "titleID": "title_champion" }
+    },
+    {
+      "id": "ach_skill_10",
+      "kind": "achievement",
+      "name": "入门",
+      "detail": "任意技能达到 Lv10",
+      "icon": "star.fill",
+      "conditions": [{ "metric": "maxSkillLevel", "comparator": "gte", "threshold": 10 }],
+      "reward": { "exp": 80, "gold": 60 }
     },
     {
       "id": "ach_skill_50",
@@ -92,13 +236,13 @@
       "reward": { "exp": 5000, "gold": 5000, "titleID": "title_legend" }
     },
     {
-      "id": "ach_player_25",
+      "id": "ach_focus_10h",
       "kind": "achievement",
-      "name": "初露锋芒",
-      "detail": "玩家等级达到 Lv25",
-      "icon": "sparkles",
-      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 25 }],
-      "reward": { "exp": 0, "gold": 500 }
+      "name": "十小时深潜",
+      "detail": "累计专注 10 小时",
+      "icon": "timer",
+      "conditions": [{ "metric": "totalFocusMinutes", "comparator": "gte", "threshold": 600 }],
+      "reward": { "exp": 200, "gold": 150, "titleID": "title_focused" }
     },
     {
       "id": "ach_focus_100h",
@@ -108,6 +252,15 @@
       "icon": "hourglass",
       "conditions": [{ "metric": "totalFocusMinutes", "comparator": "gte", "threshold": 6000 }],
       "reward": { "exp": 1000, "gold": 800 }
+    },
+    {
+      "id": "ach_study_10h",
+      "kind": "achievement",
+      "name": "初学乍练",
+      "detail": "累计学习 10 小时",
+      "icon": "book.fill",
+      "conditions": [{ "metric": "totalStudyMinutes", "comparator": "gte", "threshold": 600 }],
+      "reward": { "exp": 150, "gold": 120 }
     },
     {
       "id": "ach_early_bird",
@@ -128,6 +281,15 @@
       "reward": { "exp": 100, "gold": 100, "titleID": "title_night_owl" }
     },
     {
+      "id": "ach_perfect_1",
+      "kind": "achievement",
+      "name": "完美一日",
+      "detail": "完成一个完成率 100% 的日子",
+      "icon": "sun.max.fill",
+      "conditions": [{ "metric": "perfectDays", "comparator": "gte", "threshold": 1 }],
+      "reward": { "exp": 50, "gold": 50 }
+    },
+    {
       "id": "ach_perfect_10",
       "kind": "achievement",
       "name": "完美主义",
@@ -136,12 +298,336 @@
       "conditions": [{ "metric": "perfectDays", "comparator": "gte", "threshold": 10 }],
       "reward": { "exp": 300, "gold": 300 }
     },
+    {
+      "id": "ach_days_14",
+      "kind": "achievement",
+      "name": "两周冒险",
+      "detail": "累计冒险 14 天",
+      "icon": "calendar",
+      "conditions": [{ "metric": "totalDays", "comparator": "gte", "threshold": 14 }],
+      "reward": { "exp": 100, "gold": 100 }
+    },
+    {
+      "id": "ach_gold_1000",
+      "kind": "achievement",
+      "name": "小金库",
+      "detail": "累计获得 1000 金币",
+      "icon": "yensign.circle.fill",
+      "conditions": [{ "metric": "totalGoldEarned", "comparator": "gte", "threshold": 1000 }],
+      "reward": { "exp": 80, "gold": 0, "titleID": "title_alchemist" }
+    },
+    {
+      "id": "ach_quest_200",
+      "kind": "achievement",
+      "name": "铁血远征",
+      "detail": "累计完成 200 个任务",
+      "icon": "flag.2.crossed.fill",
+      "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 200 }],
+      "reward": { "exp": 500, "gold": 500 }
+    },
+    {
+      "id": "ach_side_50",
+      "kind": "achievement",
+      "name": "密林猎影",
+      "detail": "累计完成 50 个支线任务",
+      "icon": "binoculars.fill",
+      "conditions": [{ "metric": "totalSideQuestsCompleted", "comparator": "gte", "threshold": 50 }],
+      "reward": { "exp": 200, "gold": 160, "titleID": "title_assassin" }
+    },
+    {
+      "id": "ach_main_25",
+      "kind": "achievement",
+      "name": "誓约之证",
+      "detail": "累计完成 25 个主线任务",
+      "icon": "shield.fill",
+      "conditions": [{ "metric": "totalMainQuestsCompleted", "comparator": "gte", "threshold": 25 }],
+      "reward": { "exp": 120, "gold": 100, "titleID": "title_knight" }
+    },
+    {
+      "id": "ach_main_100",
+      "kind": "achievement",
+      "name": "屠龙凯旋",
+      "detail": "累计完成 100 个主线任务",
+      "icon": "flame.fill",
+      "conditions": [{ "metric": "totalMainQuestsCompleted", "comparator": "gte", "threshold": 100 }],
+      "reward": { "exp": 500, "gold": 400, "titleID": "title_dragonslayer" }
+    },
+    {
+      "id": "ach_habit_365",
+      "kind": "achievement",
+      "name": "岁岁苦行",
+      "detail": "累计打卡 365 次",
+      "icon": "calendar.badge.checkmark",
+      "conditions": [{ "metric": "totalHabitCheckIns", "comparator": "gte", "threshold": 365 }],
+      "reward": { "exp": 800, "gold": 600, "titleID": "title_monk" }
+    },
+    {
+      "id": "ach_login_14",
+      "kind": "achievement",
+      "name": "十四守夜",
+      "detail": "连续登录 14 天",
+      "icon": "moon.fill",
+      "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 14 }],
+      "reward": { "exp": 150, "gold": 150 }
+    },
+    {
+      "id": "ach_login_365",
+      "kind": "achievement",
+      "name": "不灭之火",
+      "detail": "连续登录 365 天",
+      "icon": "infinity",
+      "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 365 }],
+      "reward": { "exp": 3000, "gold": 3000, "titleID": "title_immortal" }
+    },
+    {
+      "id": "ach_player_30",
+      "kind": "achievement",
+      "name": "江湖扬名",
+      "detail": "玩家等级达到 Lv30",
+      "icon": "star.fill",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 30 }],
+      "reward": { "exp": 0, "gold": 700, "titleID": "title_hero" }
+    },
+    {
+      "id": "ach_player_75",
+      "kind": "achievement",
+      "name": "七重天阙",
+      "detail": "玩家等级达到 Lv75",
+      "icon": "sparkles",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 75 }],
+      "reward": { "exp": 0, "gold": 3000 }
+    },
+    {
+      "id": "ach_player_100",
+      "kind": "achievement",
+      "name": "封神",
+      "detail": "玩家等级达到 Lv100",
+      "icon": "crown.fill",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 100 }],
+      "reward": { "exp": 0, "gold": 5000, "titleID": "title_mythic" }
+    },
+    {
+      "id": "ach_skill_25",
+      "kind": "achievement",
+      "name": "小成之境",
+      "detail": "任意技能达到 Lv25",
+      "icon": "star.leadinghalf.filled",
+      "conditions": [{ "metric": "maxSkillLevel", "comparator": "gte", "threshold": 25 }],
+      "reward": { "exp": 200, "gold": 150 }
+    },
+    {
+      "id": "ach_skill_75",
+      "kind": "achievement",
+      "name": "大成之境",
+      "detail": "任意技能达到 Lv75",
+      "icon": "seal.fill",
+      "conditions": [{ "metric": "maxSkillLevel", "comparator": "gte", "threshold": 75 }],
+      "reward": { "exp": 2000, "gold": 1500 }
+    },
+    {
+      "id": "ach_focus_50h",
+      "kind": "achievement",
+      "name": "入定",
+      "detail": "累计专注 50 小时",
+      "icon": "hourglass",
+      "conditions": [{ "metric": "totalFocusMinutes", "comparator": "gte", "threshold": 3000 }],
+      "reward": { "exp": 500, "gold": 400, "titleID": "title_timekeeper" }
+    },
+    {
+      "id": "ach_study_20h",
+      "kind": "achievement",
+      "name": "启智开卷",
+      "detail": "累计学习 20 小时",
+      "icon": "book",
+      "conditions": [{ "metric": "totalStudyMinutes", "comparator": "gte", "threshold": 1200 }],
+      "reward": { "exp": 200, "gold": 160, "titleID": "title_mage" }
+    },
+    {
+      "id": "ach_study_50h",
+      "kind": "achievement",
+      "name": "寒窗五十",
+      "detail": "累计学习 50 小时",
+      "icon": "books.vertical.fill",
+      "conditions": [{ "metric": "totalStudyMinutes", "comparator": "gte", "threshold": 3000 }],
+      "reward": { "exp": 400, "gold": 300 }
+    },
+    {
+      "id": "ach_gold_5000",
+      "kind": "achievement",
+      "name": "金库守卫",
+      "detail": "累计获得 5000 金币",
+      "icon": "banknote.fill",
+      "conditions": [{ "metric": "totalGoldEarned", "comparator": "gte", "threshold": 5000 }],
+      "reward": { "exp": 200, "gold": 0, "titleID": "title_merchant" }
+    },
+    {
+      "id": "ach_gold_10000",
+      "kind": "achievement",
+      "name": "万金领主",
+      "detail": "累计获得 10000 金币",
+      "icon": "shippingbox.fill",
+      "conditions": [{ "metric": "totalGoldEarned", "comparator": "gte", "threshold": 10000 }],
+      "reward": { "exp": 400, "gold": 0 }
+    },
+    {
+      "id": "ach_exp_10000",
+      "kind": "achievement",
+      "name": "万灵觉醒",
+      "detail": "累计获得 10000 经验",
+      "icon": "bolt.fill",
+      "conditions": [{ "metric": "totalEXPEarned", "comparator": "gte", "threshold": 10000 }],
+      "reward": { "exp": 0, "gold": 300 }
+    },
+    {
+      "id": "ach_days_30",
+      "kind": "achievement",
+      "name": "满月远征",
+      "detail": "累计冒险 30 天",
+      "icon": "moon.stars.fill",
+      "conditions": [{ "metric": "totalDays", "comparator": "gte", "threshold": 30 }],
+      "reward": { "exp": 200, "gold": 180 }
+    },
+    {
+      "id": "ach_days_100",
+      "kind": "achievement",
+      "name": "百日远征",
+      "detail": "累计冒险 100 天",
+      "icon": "calendar.circle.fill",
+      "conditions": [{ "metric": "totalDays", "comparator": "gte", "threshold": 100 }],
+      "reward": { "exp": 500, "gold": 400 }
+    },
+    {
+      "id": "ach_perfect_30",
+      "kind": "achievement",
+      "name": "圣洁三十",
+      "detail": "累计 30 个完成率 100% 的日子",
+      "icon": "sun.max.fill",
+      "conditions": [{ "metric": "perfectDays", "comparator": "gte", "threshold": 30 }],
+      "reward": { "exp": 800, "gold": 600, "titleID": "title_paladin" }
+    },
+    {
+      "id": "ach_collector_10",
+      "kind": "achievement",
+      "name": "功勋拾遗",
+      "detail": "解锁 10 个成就",
+      "icon": "square.grid.2x2.fill",
+      "conditions": [{ "metric": "achievementsUnlocked", "comparator": "gte", "threshold": 10 }],
+      "reward": { "exp": 100, "gold": 80 }
+    },
 
+    {
+      "id": "title_novice",
+      "kind": "title",
+      "name": "初心者",
+      "detail": "完成第一个任务",
+      "icon": "leaf",
+      "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 1 }],
+      "reward": {}
+    },
+    {
+      "id": "title_apprentice",
+      "kind": "title",
+      "name": "学徒",
+      "detail": "累计完成 10 个任务",
+      "icon": "graduationcap",
+      "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 10 }],
+      "reward": {}
+    },
+    {
+      "id": "title_adventurer",
+      "kind": "title",
+      "name": "冒险者",
+      "detail": "累计完成 50 个任务",
+      "icon": "figure.walk",
+      "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 50 }],
+      "reward": {}
+    },
+    {
+      "id": "title_sprout",
+      "kind": "title",
+      "name": "新芽",
+      "detail": "玩家等级达到 Lv5",
+      "icon": "leaf.fill",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 5 }],
+      "reward": {}
+    },
+    {
+      "id": "title_keeper",
+      "kind": "title",
+      "name": "守约者",
+      "detail": "连续登录 7 天",
+      "icon": "checkmark.seal",
+      "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 7 }],
+      "reward": {}
+    },
+    {
+      "id": "title_disciplined",
+      "kind": "title",
+      "name": "自律者",
+      "detail": "累计打卡 50 次",
+      "icon": "alarm.fill",
+      "conditions": [{ "metric": "totalHabitCheckIns", "comparator": "gte", "threshold": 50 }],
+      "reward": {}
+    },
+    {
+      "id": "title_planner",
+      "kind": "title",
+      "name": "谋士",
+      "detail": "累计完成 10 个主线任务",
+      "icon": "brain.head.profile",
+      "conditions": [{ "metric": "totalMainQuestsCompleted", "comparator": "gte", "threshold": 10 }],
+      "reward": {}
+    },
+    {
+      "id": "title_ranger",
+      "kind": "title",
+      "name": "游侠",
+      "detail": "累计完成 10 个支线任务",
+      "icon": "figure.hiking",
+      "conditions": [{ "metric": "totalSideQuestsCompleted", "comparator": "gte", "threshold": 10 }],
+      "reward": {}
+    },
+    {
+      "id": "title_focused",
+      "kind": "title",
+      "name": "凝神者",
+      "detail": "累计专注 10 小时",
+      "icon": "eye.fill",
+      "conditions": [{ "metric": "totalFocusMinutes", "comparator": "gte", "threshold": 600 }],
+      "reward": {}
+    },
+    {
+      "id": "title_guardian",
+      "kind": "title",
+      "name": "守护者",
+      "detail": "连续登录 30 天",
+      "icon": "shield.fill",
+      "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 30 }],
+      "reward": {}
+    },
+    {
+      "id": "title_champion",
+      "kind": "title",
+      "name": "冠军",
+      "detail": "玩家等级达到 Lv50",
+      "icon": "trophy.fill",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 50 }],
+      "reward": {}
+    },
+    {
+      "id": "title_alchemist",
+      "kind": "title",
+      "name": "炼金师",
+      "detail": "累计获得 1000 金币",
+      "icon": "flask.fill",
+      "conditions": [{ "metric": "totalGoldEarned", "comparator": "gte", "threshold": 1000 }],
+      "reward": {}
+    },
     {
       "id": "title_programmer",
       "kind": "title",
-      "name": "Programmer",
-      "detail": "Programming 技能达到 Lv20",
+      "name": "代码行者",
+      "detail": "编程技能达到 Lv20",
       "icon": "chevron.left.forwardslash.chevron.right",
       "conditions": [{ "metric": "skillLevel", "param": "Programming", "comparator": "gte", "threshold": 20 }],
       "reward": {}
@@ -149,7 +635,7 @@
     {
       "id": "title_scholar",
       "kind": "title",
-      "name": "Scholar",
+      "name": "学者",
       "detail": "累计学习 50 小时",
       "icon": "book.fill",
       "conditions": [{ "metric": "totalStudyMinutes", "comparator": "gte", "threshold": 3000 }],
@@ -158,25 +644,88 @@
     {
       "id": "title_warrior",
       "kind": "title",
-      "name": "Warrior",
-      "detail": "Fitness 技能达到 Lv20",
+      "name": "武者",
+      "detail": "力量训练技能达到 Lv20",
       "icon": "figure.strengthtraining.traditional",
-      "conditions": [{ "metric": "skillLevel", "param": "Fitness", "comparator": "gte", "threshold": 20 }],
+      "conditions": [{ "metric": "skillLevel", "param": "Strength Training", "comparator": "gte", "threshold": 20 }],
       "reward": {}
     },
     {
       "id": "title_artist",
       "kind": "title",
-      "name": "Artist",
-      "detail": "Drawing 技能达到 Lv20",
+      "name": "画师",
+      "detail": "绘画技能达到 Lv20",
       "icon": "paintpalette.fill",
       "conditions": [{ "metric": "skillLevel", "param": "Drawing", "comparator": "gte", "threshold": 20 }],
       "reward": {}
     },
     {
+      "id": "title_reader",
+      "kind": "title",
+      "name": "书虫",
+      "detail": "阅读技能达到 Lv10",
+      "icon": "text.book.closed.fill",
+      "conditions": [{ "metric": "skillLevel", "param": "Reading", "comparator": "gte", "threshold": 10 }],
+      "reward": {}
+    },
+    {
+      "id": "title_chef",
+      "kind": "title",
+      "name": "掌厨",
+      "detail": "烹饪技能达到 Lv20",
+      "icon": "frying.pan.fill",
+      "conditions": [{ "metric": "skillLevel", "param": "Cooking", "comparator": "gte", "threshold": 20 }],
+      "reward": {}
+    },
+    {
+      "id": "title_musician",
+      "kind": "title",
+      "name": "乐师",
+      "detail": "音乐技能达到 Lv20",
+      "icon": "music.note",
+      "conditions": [{ "metric": "skillLevel", "param": "Music", "comparator": "gte", "threshold": 20 }],
+      "reward": {}
+    },
+    {
+      "id": "title_runner",
+      "kind": "title",
+      "name": "疾行者",
+      "detail": "跑步技能达到 Lv20",
+      "icon": "figure.run",
+      "conditions": [{ "metric": "skillLevel", "param": "Running", "comparator": "gte", "threshold": 20 }],
+      "reward": {}
+    },
+    {
+      "id": "title_craftsman",
+      "kind": "title",
+      "name": "工匠",
+      "detail": "手工技能达到 Lv20",
+      "icon": "hammer.fill",
+      "conditions": [{ "metric": "skillLevel", "param": "Crafting", "comparator": "gte", "threshold": 20 }],
+      "reward": {}
+    },
+    {
+      "id": "title_leader",
+      "kind": "title",
+      "name": "领袖",
+      "detail": "领导力技能达到 Lv20",
+      "icon": "person.3.fill",
+      "conditions": [{ "metric": "skillLevel", "param": "Leadership", "comparator": "gte", "threshold": 20 }],
+      "reward": {}
+    },
+    {
+      "id": "title_orator",
+      "kind": "title",
+      "name": "演说家",
+      "detail": "演讲技能达到 Lv20",
+      "icon": "mic.fill",
+      "conditions": [{ "metric": "skillLevel", "param": "Public Speaking", "comparator": "gte", "threshold": 20 }],
+      "reward": {}
+    },
+    {
       "id": "title_explorer",
       "kind": "title",
-      "name": "Explorer",
+      "name": "探索者",
       "detail": "连续登录 100 天",
       "icon": "safari.fill",
       "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 100 }],
@@ -185,7 +734,7 @@
     {
       "id": "title_night_owl",
       "kind": "title",
-      "name": "Night Owl",
+      "name": "夜枭",
       "detail": "在凌晨完成任务",
       "icon": "moon.zzz.fill",
       "conditions": [{ "metric": "latestCompletionHour", "comparator": "gte", "threshold": 25 }],
@@ -194,7 +743,7 @@
     {
       "id": "title_early_bird",
       "kind": "title",
-      "name": "Early Bird",
+      "name": "晨雀",
       "detail": "在清晨完成任务",
       "icon": "bird.fill",
       "conditions": [{ "metric": "earliestCompletionHour", "comparator": "lte", "threshold": 6 }],
@@ -203,10 +752,172 @@
     {
       "id": "title_legend",
       "kind": "title",
-      "name": "Legend",
+      "name": "传说",
       "detail": "玩家等级达到 Lv60",
       "icon": "crown.fill",
       "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 60 }],
+      "reward": {}
+    },
+    {
+      "id": "title_squire",
+      "kind": "title",
+      "name": "侍从",
+      "detail": "累计完成 25 个任务",
+      "icon": "figure.stand",
+      "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 25 }],
+      "reward": {}
+    },
+    {
+      "id": "title_veteran",
+      "kind": "title",
+      "name": "老兵",
+      "detail": "累计完成 100 个任务",
+      "icon": "medal.fill",
+      "conditions": [{ "metric": "totalQuestsCompleted", "comparator": "gte", "threshold": 100 }],
+      "reward": {}
+    },
+    {
+      "id": "title_hero",
+      "kind": "title",
+      "name": "英雄",
+      "detail": "玩家等级达到 Lv30",
+      "icon": "star.circle.fill",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 30 }],
+      "reward": {}
+    },
+    {
+      "id": "title_knight",
+      "kind": "title",
+      "name": "骑士",
+      "detail": "累计完成 25 个主线任务",
+      "icon": "shield.lefthalf.filled",
+      "conditions": [{ "metric": "totalMainQuestsCompleted", "comparator": "gte", "threshold": 25 }],
+      "reward": {}
+    },
+    {
+      "id": "title_paladin",
+      "kind": "title",
+      "name": "圣骑士",
+      "detail": "累计 30 个完成率 100% 的日子",
+      "icon": "heart.circle.fill",
+      "conditions": [{ "metric": "perfectDays", "comparator": "gte", "threshold": 30 }],
+      "reward": {}
+    },
+    {
+      "id": "title_mage",
+      "kind": "title",
+      "name": "法师",
+      "detail": "累计学习 20 小时",
+      "icon": "wand.and.stars",
+      "conditions": [{ "metric": "totalStudyMinutes", "comparator": "gte", "threshold": 1200 }],
+      "reward": {}
+    },
+    {
+      "id": "title_archmage",
+      "kind": "title",
+      "name": "大法师",
+      "detail": "累计学习 200 小时",
+      "icon": "sparkles",
+      "conditions": [{ "metric": "totalStudyMinutes", "comparator": "gte", "threshold": 12000 }],
+      "reward": {}
+    },
+    {
+      "id": "title_monk",
+      "kind": "title",
+      "name": "武僧",
+      "detail": "累计打卡 365 次",
+      "icon": "figure.mind.and.body",
+      "conditions": [{ "metric": "totalHabitCheckIns", "comparator": "gte", "threshold": 365 }],
+      "reward": {}
+    },
+    {
+      "id": "title_assassin",
+      "kind": "title",
+      "name": "刺客",
+      "detail": "累计完成 50 个支线任务",
+      "icon": "moon.fill",
+      "conditions": [{ "metric": "totalSideQuestsCompleted", "comparator": "gte", "threshold": 50 }],
+      "reward": {}
+    },
+    {
+      "id": "title_sage",
+      "kind": "title",
+      "name": "贤者",
+      "detail": "解锁 20 个成就",
+      "icon": "brain",
+      "conditions": [{ "metric": "achievementsUnlocked", "comparator": "gte", "threshold": 20 }],
+      "reward": {}
+    },
+    {
+      "id": "title_immortal",
+      "kind": "title",
+      "name": "不朽者",
+      "detail": "连续登录 365 天",
+      "icon": "infinity",
+      "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 365 }],
+      "reward": {}
+    },
+    {
+      "id": "title_merchant",
+      "kind": "title",
+      "name": "行商",
+      "detail": "累计获得 5000 金币",
+      "icon": "bag.fill",
+      "conditions": [{ "metric": "totalGoldEarned", "comparator": "gte", "threshold": 5000 }],
+      "reward": {}
+    },
+    {
+      "id": "title_mythic",
+      "kind": "title",
+      "name": "神话",
+      "detail": "玩家等级达到 Lv100",
+      "icon": "sparkle",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 100 }],
+      "reward": {}
+    },
+    {
+      "id": "title_scribe",
+      "kind": "title",
+      "name": "书记官",
+      "detail": "写作技能达到 Lv20",
+      "icon": "pencil.and.outline",
+      "conditions": [{ "metric": "skillLevel", "param": "Writing", "comparator": "gte", "threshold": 20 }],
+      "reward": {}
+    },
+    {
+      "id": "title_swordsman",
+      "kind": "title",
+      "name": "剑士",
+      "detail": "武术技能达到 Lv20",
+      "icon": "figure.martial.arts",
+      "conditions": [{ "metric": "skillLevel", "param": "Martial Arts", "comparator": "gte", "threshold": 20 }],
+      "reward": {}
+    },
+    {
+      "id": "title_mystic",
+      "kind": "title",
+      "name": "修士",
+      "detail": "瑜伽技能达到 Lv20",
+      "icon": "figure.yoga",
+      "conditions": [{ "metric": "skillLevel", "param": "Yoga", "comparator": "gte", "threshold": 20 }],
+      "reward": {}
+    },
+    {
+      "id": "title_timekeeper",
+      "kind": "title",
+      "name": "时之守望",
+      "detail": "累计专注 50 小时",
+      "icon": "clock.fill",
+      "conditions": [{ "metric": "totalFocusMinutes", "comparator": "gte", "threshold": 3000 }],
+      "reward": {}
+    },
+    {
+      "id": "title_dragonslayer",
+      "kind": "title",
+      "name": "屠龙者",
+      "detail": "累计完成 100 个主线任务",
+      "icon": "flame.circle.fill",
+      "conditions": [{ "metric": "totalMainQuestsCompleted", "comparator": "gte", "threshold": 100 }],
       "reward": {}
     },
 
@@ -241,9 +952,9 @@
       "id": "chal_fitness_lv30",
       "kind": "challenge",
       "name": "健身达人",
-      "detail": "Fitness 技能达到 Lv30",
+      "detail": "力量训练技能达到 Lv30",
       "icon": "dumbbell.fill",
-      "conditions": [{ "metric": "skillLevel", "param": "Fitness", "comparator": "gte", "threshold": 30 }],
+      "conditions": [{ "metric": "skillLevel", "param": "Strength Training", "comparator": "gte", "threshold": 30 }],
       "reward": { "exp": 2000, "gold": 1500, "titleID": "title_warrior" }
     },
     {
@@ -254,6 +965,231 @@
       "icon": "checklist",
       "conditions": [{ "metric": "totalHabitCheckIns", "comparator": "gte", "threshold": 1000 }],
       "reward": { "exp": 4000, "gold": 3500 }
+    },
+    {
+      "id": "chal_focus_200h",
+      "kind": "challenge",
+      "name": "二百时冥想",
+      "detail": "累计专注 200 小时，完成长线冥想试炼",
+      "icon": "hourglass.bottomhalf.filled",
+      "conditions": [{ "metric": "totalFocusMinutes", "comparator": "gte", "threshold": 12000 }],
+      "reward": { "exp": 3000, "gold": 2500, "titleID": "title_timekeeper" }
+    },
+    {
+      "id": "chal_perfect_50",
+      "kind": "challenge",
+      "name": "五十完璧",
+      "detail": "累计 50 个完成率 100% 的日子",
+      "icon": "checkmark.seal.fill",
+      "conditions": [{ "metric": "perfectDays", "comparator": "gte", "threshold": 50 }],
+      "reward": { "exp": 2800, "gold": 2200, "titleID": "title_paladin" }
+    },
+    {
+      "id": "chal_login_180",
+      "kind": "challenge",
+      "name": "半年守夜",
+      "detail": "连续登录 180 天",
+      "icon": "flame.circle.fill",
+      "conditions": [{ "metric": "bestLoginStreak", "comparator": "gte", "threshold": 180 }],
+      "reward": { "exp": 3500, "gold": 3000 }
+    },
+    {
+      "id": "chal_main_80",
+      "kind": "challenge",
+      "name": "王都远征",
+      "detail": "累计完成 80 个主线任务",
+      "icon": "map.circle.fill",
+      "conditions": [{ "metric": "totalMainQuestsCompleted", "comparator": "gte", "threshold": 80 }],
+      "reward": { "exp": 2500, "gold": 2000, "titleID": "title_knight" }
+    },
+    {
+      "id": "chal_player_80",
+      "kind": "challenge",
+      "name": "问鼎八十",
+      "detail": "玩家等级达到 Lv80",
+      "icon": "mountain.2.fill",
+      "conditions": [{ "metric": "playerLevel", "comparator": "gte", "threshold": 80 }],
+      "reward": { "exp": 0, "gold": 4000 }
+    },
+    {
+      "id": "chal_gold_20000",
+      "kind": "challenge",
+      "name": "巨龙宝库",
+      "detail": "累计获得 20000 金币",
+      "icon": "shippingbox.fill",
+      "conditions": [{ "metric": "totalGoldEarned", "comparator": "gte", "threshold": 20000 }],
+      "reward": { "exp": 2000, "gold": 0, "titleID": "title_merchant" }
+    },
+    {
+      "id": "chal_skill_80",
+      "kind": "challenge",
+      "name": "登峰造极",
+      "detail": "任意技能达到 Lv80",
+      "icon": "rosette",
+      "conditions": [{ "metric": "maxSkillLevel", "comparator": "gte", "threshold": 80 }],
+      "reward": { "exp": 4000, "gold": 3500 }
+    },
+    {
+      "id": "chal_days_365",
+      "kind": "challenge",
+      "name": "一年冒险",
+      "detail": "累计冒险 365 天",
+      "icon": "calendar",
+      "conditions": [{ "metric": "totalDays", "comparator": "gte", "threshold": 365 }],
+      "reward": { "exp": 3000, "gold": 2500, "titleID": "title_explorer" }
+    },
+    {
+      "id": "chal_archmage",
+      "kind": "challenge",
+      "name": "大法师试炼",
+      "detail": "累计学习 200 小时",
+      "icon": "wand.and.stars",
+      "conditions": [{ "metric": "totalStudyMinutes", "comparator": "gte", "threshold": 12000 }],
+      "reward": { "exp": 4000, "gold": 3000, "titleID": "title_archmage" }
+    },
+    {
+      "id": "chal_code_lv40",
+      "kind": "challenge",
+      "name": "代码圣殿",
+      "detail": "编程技能达到 Lv40",
+      "icon": "chevron.left.forwardslash.chevron.right",
+      "conditions": [{ "metric": "skillLevel", "param": "Programming", "comparator": "gte", "threshold": 40 }],
+      "reward": { "exp": 2500, "gold": 2000, "titleID": "title_programmer" }
+    },
+    {
+      "id": "ach_series_first",
+      "kind": "achievement",
+      "name": "初履征途",
+      "detail": "走完第一段周期旅途",
+      "icon": "figure.walk",
+      "conditions": [{ "metric": "recurringJourneys", "comparator": "gte", "threshold": 1 }],
+      "reward": { "exp": 200, "gold": 200, "titleID": "title_oathcloser" }
+    },
+    {
+      "id": "ach_series_7d",
+      "kind": "achievement",
+      "name": "初程归途",
+      "detail": "结束一趟至少 7 天的远行",
+      "icon": "7.circle.fill",
+      "conditions": [{ "metric": "longestRecurringSeriesDays", "comparator": "gte", "threshold": 7 }],
+      "reward": { "exp": 300, "gold": 300 }
+    },
+    {
+      "id": "ach_series_30d",
+      "kind": "achievement",
+      "name": "月路归客",
+      "detail": "结束一趟至少 30 天的远行",
+      "icon": "moon.circle.fill",
+      "conditions": [{ "metric": "longestRecurringSeriesDays", "comparator": "gte", "threshold": 30 }],
+      "reward": { "exp": 800, "gold": 800, "titleID": "title_campaigner" }
+    },
+    {
+      "id": "ach_series_100d",
+      "kind": "achievement",
+      "name": "百日行记",
+      "detail": "结束一趟至少 100 天的远行",
+      "icon": "map.fill",
+      "conditions": [{ "metric": "longestRecurringSeriesDays", "comparator": "gte", "threshold": 100 }],
+      "reward": { "exp": 2000, "gold": 2000, "titleID": "title_legend_oath" }
+    },
+    {
+      "id": "ach_series_365d",
+      "kind": "achievement",
+      "name": "岁旅成册",
+      "detail": "结束一趟至少 365 天的远行",
+      "icon": "globe.asia.australia.fill",
+      "conditions": [{ "metric": "longestRecurringSeriesDays", "comparator": "gte", "threshold": 365 }],
+      "reward": { "exp": 5000, "gold": 5000, "titleID": "title_eternal_oath" }
+    },
+    {
+      "id": "ach_series_3",
+      "kind": "achievement",
+      "name": "三段行纪",
+      "detail": "累计走完 3 段周期旅途",
+      "icon": "3.circle.fill",
+      "conditions": [{ "metric": "recurringJourneys", "comparator": "gte", "threshold": 3 }],
+      "reward": { "exp": 600, "gold": 500, "titleID": "title_closer" }
+    },
+    {
+      "id": "ach_series_10",
+      "kind": "achievement",
+      "name": "十驿行囊",
+      "detail": "累计走完 10 段周期旅途",
+      "icon": "backpack.fill",
+      "conditions": [{ "metric": "recurringJourneys", "comparator": "gte", "threshold": 10 }],
+      "reward": { "exp": 2500, "gold": 2000, "titleID": "title_contract_master" }
+    },
+    {
+      "id": "title_oathcloser",
+      "kind": "title",
+      "name": "旅人",
+      "detail": "走完第一段周期旅途",
+      "icon": "figure.walk",
+      "conditions": [{ "metric": "recurringJourneys", "comparator": "gte", "threshold": 1 }],
+      "reward": {}
+    },
+    {
+      "id": "title_campaigner",
+      "kind": "title",
+      "name": "月下旅人",
+      "detail": "结束一趟至少 30 天的远行",
+      "icon": "moon.stars.fill",
+      "conditions": [{ "metric": "longestRecurringSeriesDays", "comparator": "gte", "threshold": 30 }],
+      "reward": {}
+    },
+    {
+      "id": "title_legend_oath",
+      "kind": "title",
+      "name": "行记客",
+      "detail": "结束一趟至少 100 天的远行",
+      "icon": "book.fill",
+      "conditions": [{ "metric": "longestRecurringSeriesDays", "comparator": "gte", "threshold": 100 }],
+      "reward": {}
+    },
+    {
+      "id": "title_eternal_oath",
+      "kind": "title",
+      "name": "岁路人",
+      "detail": "结束一趟至少 365 天的远行",
+      "icon": "globe.asia.australia.fill",
+      "conditions": [{ "metric": "longestRecurringSeriesDays", "comparator": "gte", "threshold": 365 }],
+      "reward": {}
+    },
+    {
+      "id": "title_closer",
+      "kind": "title",
+      "name": "行纪者",
+      "detail": "累计走完 3 段周期旅途",
+      "icon": "pencil.and.outline",
+      "conditions": [{ "metric": "recurringJourneys", "comparator": "gte", "threshold": 3 }],
+      "reward": {}
+    },
+    {
+      "id": "title_contract_master",
+      "kind": "title",
+      "name": "十程旅者",
+      "detail": "累计走完 10 段周期旅途",
+      "icon": "flag.2.crossed.fill",
+      "conditions": [{ "metric": "recurringJourneys", "comparator": "gte", "threshold": 10 }],
+      "reward": {}
+    },
+    {
+      "id": "chal_series_365",
+      "kind": "challenge",
+      "name": "环岁远征",
+      "detail": "结束一趟至少 365 天的远行",
+      "icon": "globe.asia.australia.fill",
+      "conditions": [{ "metric": "longestRecurringSeriesDays", "comparator": "gte", "threshold": 365 }],
+      "reward": { "exp": 5000, "gold": 4000, "titleID": "title_eternal_oath" }
+    },
+    {
+      "id": "chal_series_5",
+      "kind": "challenge",
+      "name": "五段旅途",
+      "detail": "累计走完 5 段周期旅途",
+      "icon": "map.fill",
+      "conditions": [{ "metric": "recurringJourneys", "comparator": "gte", "threshold": 5 }],
+      "reward": { "exp": 3000, "gold": 2500, "titleID": "title_closer" }
     }
   ]
 }

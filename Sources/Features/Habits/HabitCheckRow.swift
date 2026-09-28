@@ -59,6 +59,7 @@ struct HabitCheckRow: View {
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
+        .rewardFeedback(for: habit.id)
         .contextMenu {
             if habit.dailyTarget > 1 {
                 Button(L10n.t("habit.fill_today")) { store.toggleHabit(habit) }

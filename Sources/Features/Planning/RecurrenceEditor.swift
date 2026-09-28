@@ -23,6 +23,7 @@ struct RecurrenceEditor: View {
     @Binding var timesPerWeek: Int
     @Binding var monthDays: Set<Int>
     @Binding var startPolicy: RecurrenceStartPolicy
+    @Binding var maxCompletionsPerDay: Int
 
     var recurrence: RecurrenceRule {
         Self.rule(
@@ -66,6 +67,12 @@ struct RecurrenceEditor: View {
             case .monthly:
                 monthDayPicker
             }
+
+            Stepper(
+                L10n.format("recurrence.daily_cap_stepper", maxCompletionsPerDay),
+                value: $maxCompletionsPerDay,
+                in: 1...7
+            )
         }
 
         Section {

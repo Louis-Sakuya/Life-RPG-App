@@ -25,6 +25,9 @@ struct ChallengeEditorView: View {
             MetricOption(key: MetricKey.totalStudyMinutes, title: L10n.t("metric.totalStudyMinutes"), unit: L10n.t("unit.minutes")),
             MetricOption(key: MetricKey.totalFocusMinutes, title: L10n.t("metric.totalFocusMinutes"), unit: L10n.t("unit.minutes")),
             MetricOption(key: MetricKey.perfectDays, title: L10n.t("metric.perfectDays"), unit: L10n.t("unit.days")),
+            MetricOption(key: MetricKey.recurringJourneys, title: L10n.t("metric.recurringJourneys"), unit: L10n.t("unit.count")),
+            MetricOption(key: MetricKey.recurringSeriesFinished, title: L10n.t("metric.recurringSeriesFinished"), unit: L10n.t("unit.count")),
+            MetricOption(key: MetricKey.longestRecurringSeriesDays, title: L10n.t("metric.longestRecurringSeriesDays"), unit: L10n.t("unit.days")),
             MetricOption(key: MetricKey.skillLevel, title: L10n.t("metric.skillLevel"), unit: L10n.t("unit.levels"), needsSkill: true),
             MetricOption(key: MetricKey.habitStreak, title: L10n.t("metric.habitStreak"), unit: L10n.t("unit.days"), needsHabit: true)
         ]

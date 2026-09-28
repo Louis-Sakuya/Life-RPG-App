@@ -63,6 +63,25 @@ final class OnboardingTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(store.player.totalDaysPlayed, 1)
     }
 
+    func testCompleteOnboardingSavesPresetAndCustomAvatars() {
+        let store = makeStore()
+        let photo = Data("custom-avatar".utf8)
+
+        store.completeOnboarding(
+            nickname: "旅人",
+            avatarSymbol: "flame.fill",
+            avatarImageData: photo,
+            skills: []
+        )
+
+        XCTAssertEqual(store.player.avatarSymbol, "flame.fill")
+        XCTAssertEqual(store.player.avatarImageData, photo)
+
+        store.updateAvatar(symbol: "leaf.fill", imageData: nil)
+        XCTAssertEqual(store.player.avatarSymbol, "leaf.fill")
+        XCTAssertNil(store.player.avatarImageData)
+    }
+
     func testCompleteOnboardingCapsSkillsAtFive() {
         let store = makeStore()
         let presets = Array(store.container.config.skillCatalog.skills.prefix(7))
@@ -132,9 +151,27 @@ final class OnboardingTests: XCTestCase {
 
         XCTAssertTrue(store.needsOnboarding)
         XCTAssertEqual(store.player.nickname, Player.defaultNickname)
+        XCTAssertEqual(store.player.avatarSymbol, Player.defaultAvatarSymbol)
+        XCTAssertNil(store.player.avatarImageData)
         XCTAssertEqual(store.player.totalEXP, 0)
         XCTAssertTrue(store.skills.isEmpty)
         XCTAssertTrue(store.habits.isEmpty)
         XCTAssertEqual(store.player.lastActiveDayValue, 0)
+    }
+
+    func testPendingResetClearsSaveBeforeNextLaunch() {
+        let container = AppContainer(inMemory: true)
+        let store = GameStore(container: container)
+        store.bootstrap()
+        store.completeOnboarding(nickname: "旅人", skills: [])
+        XCTAssertEqual(store.player.nickname, "旅人")
+
+        UserDefaults.standard.set(true, forKey: ExportService.pendingResetDefaultsKey)
+        ExportService.consumePendingResetIfNeeded(context: container.context, config: container.config)
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: ExportService.pendingResetDefaultsKey))
+
+        let player = PlayerRepository(context: container.context).currentPlayer()
+        XCTAssertEqual(player.nickname, Player.defaultNickname)
+        XCTAssertEqual(player.totalEXP, 0)
     }
 }

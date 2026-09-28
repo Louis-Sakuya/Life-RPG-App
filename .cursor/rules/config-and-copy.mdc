@@ -1,0 +1,22 @@
+---
+description: 数值表与中英文案的唯一修改入口。
+globs: Resources/**/*.json,scripts/generate_localization.py
+alwaysApply: false
+---
+
+# 配置与文案
+
+调数值只改对应 JSON，重启后生效。不要为了一个数字去改引擎：
+
+| 要调整的内容 | 文件 |
+| --- | --- |
+| 基础经验、曲线、连续档、技能栏位 | `Resources/Config/balance.json` |
+| 加成百分比与分组 | `Resources/Config/modifiers.json` |
+| 成就、称号、挑战 | `Resources/Config/unlock_rules.json` |
+| 商品、主题氛围、道具价格 | `Resources/Config/shop_items.json` |
+| 幸运成长与幸运日 | `Resources/Config/fortune.json` |
+| 预设技能目录 | `Resources/Config/skill_catalog.json` |
+
+文案源头是 `scripts/generate_localization.py` 里的 `STRINGS`、`SKILLS`、`SHOP`、`UNLOCKS`。新键必须中英成对，然后运行该脚本重写 `zh-Hans.json` 与 `en.json`。不要只改 JSON。
+
+界面读取用 `L10n.t` / `L10n.format`。不要引入 `Localizable.strings`。
